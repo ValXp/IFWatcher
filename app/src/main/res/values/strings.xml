@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">InfiniteFlightWatcher</string>
+    <string name="title_activity_maps">InfiniteFlightWatcher</string>
+    <string name="button_toggle_type">Toggle map type</string>
+    <string name="nobody_is_playing">Sorry ! Nobody is playing right now ...</string>
+    <string name="refreshing_data">Refreshing data...</string>
+    <plurals name="N_users_online">
+        <item quantity="zero">Nobody is connected</item>
+        <item quantity="one">One user online</item>
+        <item quantity="other">%d users online</item>
+    </plurals>
+</resources>

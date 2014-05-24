@@ -1,0 +1,60 @@
+apply plugin: 'android'
+
+
+allprojects {
+    afterEvaluate { project ->
+        def propsFile = rootProject.file('localSigning.properties')
+        def configName = 'release'
+
+        if (propsFile.exists() && android.signingConfigs.hasProperty(configName)) {
+            def props = new Properties()
+            props.load(new FileInputStream(propsFile))
+            android.signingConfigs[configName].storeFile = file(props['storeFile'])
+            android.signingConfigs[configName].storePassword = props['storePassword']
+            android.signingConfigs[configName].keyAlias = props['keyAlias']
+            android.signingConfigs[configName].keyPassword = props['keyPassword']
+        }
+    }
+}
+
+
+
+android {
+    compileSdkVersion 19
+    buildToolsVersion "19.0.3"
+
+    signingConfigs {
+        release {
+
+        }
+    }
+
+    defaultConfig {
+        minSdkVersion 11
+        targetSdkVersion 19
+        versionCode 5
+        versionName "3.0GP"
+    }
+    buildTypes {
+        release {
+            runProguard true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
+            debuggable false
+            signingConfig signingConfigs.release
+        }
+    }
+}
+
+
+
+
+dependencies {
+    compile 'com.android.support:appcompat-v7:19.+'
+    compile 'com.google.maps.android:android-maps-utils:0.3+'
+
+
+    // You must install or update the Google Repository through the SDK manager to use this dependency.
+    // The Google Repository (separate from the corresponding library) can be found in the Extras category.
+    compile 'com.google.android.gms:play-services:4.2.42'
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+}
