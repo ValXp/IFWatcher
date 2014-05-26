@@ -1,5 +1,12 @@
 package com.valxp.app.infiniteflightwatcher;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
@@ -7,9 +14,11 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
@@ -22,6 +31,15 @@ import com.google.maps.android.SphericalUtil;
 import com.valxp.app.infiniteflightwatcher.model.Fleet;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.StringWriter;
+import java.lang.reflect.Field;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,19 +47,20 @@ public class MapsActivity extends FragmentActivity {
 
     private static final long FLIGHT_MAX_LIFETIME_SECONDS = 60 * 2;
     private static final int REFRESH_UI_MS = 1000 / 15;
-    private static final int REFRESH_API_MS = 10 * 1000;
+    private static final int REFRESH_API_MS = 8 * 1000;
     private static final int REFRESH_INFO_MS = 2 * 1000;
     private static final long MAX_INTERPOLATE_DURATION_MS = 50 * 1000;
     private static final int TRAIL_LENGTH = 50;
     private static final double KTS_TO_M_PER_S = .52;
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private Thread mUpdateThread;
-    private BitmapDescriptor mIcon;
     private Fleet mFleet;
     private Handler mUIRefreshHandler;
     private long mLastTimeInfoUpdated;
     private TextView mNobodyPlayingText;
     private TextView mRefreshingText;
+    private AirplaneBitmapProvider mBitmapProvider;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,7 +68,8 @@ public class MapsActivity extends FragmentActivity {
         setContentView(R.layout.activity_maps);
         setUpMapIfNeeded();
         mFleet = new Fleet();
-        mIcon = BitmapDescriptorFactory.fromResource(R.drawable.airplane);
+        mBitmapProvider = new AirplaneBitmapProvider();
+
         Button button = (Button) findViewById(R.id.toggleMapType);
         mNobodyPlayingText = (TextView) findViewById(R.id.nobody_is_playing);
         mRefreshingText = (TextView) findViewById(R.id.refreshing_data);
@@ -62,7 +82,10 @@ public class MapsActivity extends FragmentActivity {
                 mMap.setMapType(newType);
             }
         });
+
+        checkUpdate();
     }
+
 
     @Override
     protected void onResume() {
@@ -164,7 +187,7 @@ public class MapsActivity extends FragmentActivity {
             } else {
                 Marker marker = mMap.addMarker(new MarkerOptions().position(data.position).title(toTitle(flight))
                         .rotation(data.bearing.floatValue()).snippet(toSnippet(data))
-                        .icon(mIcon)
+                        .icon(mBitmapProvider.getAsset(flight))
                         .anchor(.5f, .5f)
                         .infoWindowAnchor(.5f, .5f)
                         .flat(true)); // Flat will keep the rotation based on the north
@@ -246,5 +269,60 @@ public class MapsActivity extends FragmentActivity {
         }
     }
 
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+    }
+
+    private void checkUpdate() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                URL url = null;
+                try {
+                    url = new URL("http://valxp.net/IFWatcher/version.txt");
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    InputStream stream = url.openStream();
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+                    String line = reader.readLine();
+                    final int newVersion = Integer.decode(line);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            PackageInfo pInfo = null;
+                            try {
+                                pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+                            } catch (PackageManager.NameNotFoundException e) {
+                                e.printStackTrace();
+                            }
+                            if (newVersion > pInfo.versionCode) {
+                                AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
+
+                                builder.setTitle("New update available! Current : v" + pInfo.versionCode + " latest : v" + newVersion);
+                                builder.setMessage("Do you want to download the new version ?");
+                                builder.setPositiveButton("Okay!", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialogInterface, int i) {
+                                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://valxp.net/IFWatcher/IFWatcher.apk"));
+                                        startActivity(intent);
+                                    }
+                                });
+                                builder.setNegativeButton("Leave me alone", null);
+                                builder.create().show();
+                            } else {
+                                Toast.makeText(MapsActivity.this, "You are up to date ! (v" + pInfo.versionCode + ")", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
 
 }

@@ -50,7 +50,6 @@ public class Fleet {
         } catch (MalformedURLException e) {
             e.printStackTrace();
         }
-        StringBuilder out = new StringBuilder();
         try {
             return url.openStream();
         } catch (IOException e) {
@@ -77,9 +76,9 @@ public class Fleet {
 
     private void parseFlight(Map<String, Flight> flights, JsonReader reader) throws IOException {
         Flight tempFlight = new Flight(reader);
-        Flight found = flights.get(tempFlight.getDisplayName());
+        Flight found = flights.get(tempFlight.getFlightID());
         if (found == null) {
-            flights.put(tempFlight.getDisplayName(), tempFlight);
+            flights.put(tempFlight.getFlightID(), tempFlight);
         } else {
             found.addFlightData(tempFlight.getFlightHistory());
         }
