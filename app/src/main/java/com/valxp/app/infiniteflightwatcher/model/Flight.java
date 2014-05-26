@@ -19,6 +19,10 @@ public class Flight {
     private String mAircraftName;
     private String mCallSign;
     private String mDisplayName;
+    private String mFlightID;
+    private String mUserID;
+    private Long mLastReportUTC;
+
     private List<FlightData> mFlightHistory;
     private Marker mMarker;
     private Polyline mHistoryTrail;
@@ -55,6 +59,13 @@ public class Flight {
                 mFlightHistory.get(0).speed = reader.nextDouble();
             else if (name.equals("Track"))
                 mFlightHistory.get(0).bearing = reader.nextDouble();
+            else if (name.equals("FlightID")) {
+                mFlightID = reader.nextString();
+            } else if (name.equals("UserID")) {
+                mUserID = reader.nextString();
+            } else if (name.equals("LastReportUTC")) {
+                mLastReportUTC = reader.nextLong();
+            }
             else {
                 Log.w("FlightParsing", "Skipping value " + name);
                 reader.skipValue();
@@ -91,6 +102,18 @@ public class Flight {
 
     public String getDisplayName() {
         return mDisplayName;
+    }
+
+    public Long getLastReportUTC() {
+        return mLastReportUTC;
+    }
+
+    public String getUserID() {
+        return mUserID;
+    }
+
+    public String getFlightID() {
+        return mFlightID;
     }
 
     public List<FlightData> getFlightHistory() {
@@ -131,10 +154,13 @@ public class Flight {
     @Override
     public String toString() {
         return "Flight{" +
-                "mAircraftName='" + mAircraftName + '\'' +
+                "mFlightHistory=" + mFlightHistory +
+                ", mAircraftName='" + mAircraftName + '\'' +
                 ", mCallSign='" + mCallSign + '\'' +
                 ", mDisplayName='" + mDisplayName + '\'' +
-                ", mFlightHistory=" + mFlightHistory +
+                ", mFlightID=" + mFlightID +
+                ", mUserID=" + mUserID +
+                ", mLastReportUTC=" + mLastReportUTC +
                 '}';
     }
 
