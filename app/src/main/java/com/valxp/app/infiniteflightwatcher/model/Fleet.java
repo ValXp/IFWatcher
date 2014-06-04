@@ -93,7 +93,7 @@ public class Fleet {
         return activeFlights;
     }
 
-    public void discardOldFlights(long thresholdInSeconds) {
+    synchronized public void discardOldFlights(long thresholdInSeconds) {
         for (Iterator<Map.Entry<String, Flight>> it = mFleet.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<String, Flight> entry = it.next();
             if (entry.getValue().getAgeMs() / 1000 > thresholdInSeconds) {

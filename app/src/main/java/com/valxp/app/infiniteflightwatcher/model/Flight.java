@@ -10,6 +10,7 @@ import com.google.android.gms.maps.model.Polyline;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -33,7 +34,6 @@ public class Flight {
         double lat = 0, lng = 0;
         mFlightHistory = new ArrayList<FlightData>();
         mFlightHistory.add(new FlightData());
-        mFlightHistory.get(0).reportTimestamp = System.currentTimeMillis();
         while (reader.hasNext()) {
             String name = reader.nextName();
             // Ignore null values
@@ -64,9 +64,9 @@ public class Flight {
             } else if (name.equals("UserID")) {
                 mUserID = reader.nextString();
             } else if (name.equals("LastReportUTC")) {
-                mLastReportUTC = reader.nextLong();
-            }
-            else {
+                mLastReportUTC = ((reader.nextLong() / 10000000) - 11644473600l) * 1000; // Windows file time to unix time in MS
+                mFlightHistory.get(0).reportTimestampUTC = mLastReportUTC;
+            } else {
                 Log.w("FlightParsing", "Skipping value " + name);
                 reader.skipValue();
             }
@@ -74,8 +74,8 @@ public class Flight {
         mFlightHistory.get(0).position = new LatLng(lat, lng);
         // Ignoring old locations
         if (!mFlightHistory.get(0).lastReport.equals("less than a minute ago")) {
-            Log.d("Flight", "Ignoring " + mDisplayName + " because it was " + mFlightHistory.get(0).lastReport);
-            mFlightHistory.remove(0);
+            //Log.d("Flight", "Ignoring " + mDisplayName + " because it was " + mFlightHistory.get(0).lastReport);
+            //mFlightHistory.remove(0);
         }
         reader.endObject();
         //Log.d("FlightPArsing", this.toString());
@@ -85,10 +85,8 @@ public class Flight {
         // We only check the last one, and compare it to see if we already have it and then add it to our list
         if (data.size() <= 0 || mFlightHistory.size() <= 0)
             return;
-        if (!data.get(0).equals(mFlightHistory.get(mFlightHistory.size() - 1))) {
+        if (mFlightHistory.get(mFlightHistory.size() - 1).isOlderThan(data.get(0))) {
             mFlightHistory.add(data.get(0));
-        } else if (data.get(0).speed.intValue() == 0) {
-            mFlightHistory.get(0).reportTimestamp = data.get(0).reportTimestamp;
         }
     }
 
@@ -146,7 +144,7 @@ public class Flight {
 
     public long getAgeMs() {
         if (mFlightHistory.size() > 0) {
-            return System.currentTimeMillis() - mFlightHistory.get(mFlightHistory.size() - 1).reportTimestamp;
+            return mFlightHistory.get(mFlightHistory.size() - 1).getAgeMs();
         } else
             return 0;
     }
@@ -169,19 +167,15 @@ public class Flight {
         public Double speed;
         public Double bearing;
         public String lastReport;
-        public Long reportTimestamp;
+        public Long reportTimestampUTC;
         public Double altitude;
 
-        @Override
-        public boolean equals(Object other) {
-            if (other.getClass().equals(this.getClass())) {
-                FlightData otherFlight = (FlightData) other;
-                return position.equals(otherFlight.position) &&
-                        speed.equals(otherFlight.speed) &&
-                        bearing.equals(otherFlight.bearing) &&
-                        altitude.equals(otherFlight.altitude);
-            }
-            return false;
+        public boolean isOlderThan(FlightData other) {
+            return reportTimestampUTC > other.reportTimestampUTC;
+        }
+
+        public long getAgeMs() {
+            return new Date().getTime() - reportTimestampUTC;
         }
 
         @Override
@@ -191,7 +185,6 @@ public class Flight {
                     ", speed=" + speed +
                     ", bearing=" + bearing +
                     ", lastReport='" + lastReport + '\'' +
-                    ", reportTimestamp=" + reportTimestamp +
                     ", altitude=" + altitude +
                     '}';
         }
