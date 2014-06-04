@@ -10,7 +10,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -18,10 +17,7 @@ import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.BitmapDescriptor;
-import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -35,21 +31,21 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.StringWriter;
-import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 public class MapsActivity extends FragmentActivity {
 
-    private static final long FLIGHT_MAX_LIFETIME_SECONDS = 60 * 2;
+    private static final long FLIGHT_MAX_LIFETIME_SECONDS = 60 * 10;
+    private static final long MAX_INTERPOLATE_DURATION_MS = FLIGHT_MAX_LIFETIME_SECONDS * 1000;
     private static final int REFRESH_UI_MS = 1000 / 15;
     private static final int REFRESH_API_MS = 8 * 1000;
     private static final int REFRESH_INFO_MS = 2 * 1000;
-    private static final long MAX_INTERPOLATE_DURATION_MS = 50 * 1000;
     private static final int TRAIL_LENGTH = 50;
     private static final double KTS_TO_M_PER_S = .52;
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
@@ -136,7 +132,7 @@ public class MapsActivity extends FragmentActivity {
         mFleet.discardOldFlights(FLIGHT_MAX_LIFETIME_SECONDS);
         mNobodyPlayingText.setVisibility((mFleet.getActiveFleetSize() <= 0 && mFleet.isUpToDate()) ? View.VISIBLE : View.GONE);
         boolean updateInfo = false;
-        long now = System.currentTimeMillis();
+        long now = new Date().getTime();
         if (now - mLastTimeInfoUpdated > REFRESH_INFO_MS) {
             mLastTimeInfoUpdated = now;
             updateInfo = true;
@@ -154,7 +150,7 @@ public class MapsActivity extends FragmentActivity {
             if (lastMarker != null) {
                 // compute estimated new position based on speed
                 // Stop interpolating if data is too old
-                long delta = Math.min(now - data.reportTimestamp, MAX_INTERPOLATE_DURATION_MS);
+                long delta = Math.min(now - data.reportTimestampUTC, MAX_INTERPOLATE_DURATION_MS);
                 double distanceMeter = (data.speed * KTS_TO_M_PER_S) * (delta / 1000.0);
                 LatLng newPos = SphericalUtil.computeOffset(data.position, distanceMeter, data.bearing);
                 lastMarker.setPosition(newPos);
@@ -231,11 +227,90 @@ public class MapsActivity extends FragmentActivity {
     }
 
     private String toSnippet(Flight.FlightData data) {
-        int seconds = (int) (System.currentTimeMillis() - data.reportTimestamp) / 1000;
+
+        int seconds = (int) (data.getAgeMs()) / 1000;
         String out = data.speed.intValue() + " kts | " + data.altitude.intValue() + " ft";
         if (seconds > 0)
-            out += " | " + seconds + " seconds ago";
+            if (seconds > 60)
+                out += " | " + (seconds / 60) + " minute" + (seconds / 60 > 1 ? "s" : "") + " ago";
+            else
+                out += " | " + seconds + " second" + (seconds > 1 ? "s" : "") + " ago";
         return out;
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+    }
+
+    private void checkUpdate() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                URL url = null;
+                try {
+                    url = new URL("http://valxp.net/IFWatcher/version.txt");
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                }
+                try {
+                    InputStream stream = url.openStream();
+                    BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+                    List<String> lines = new ArrayList<String>();
+                    String line = null;
+                    do {
+                        line = reader.readLine();
+                        if (line != null)
+                            lines.add(line);
+                    } while (line != null);
+                    if (lines.size() == 0)
+                        return;
+                    final int newVersion = Integer.decode(lines.get(0));
+                    String description = "";
+                    Iterator<String> it = lines.iterator();
+                    if (it.hasNext())
+                        it.next();
+                    while (it.hasNext()) {
+                        description += it.next() + "\n";
+                    }
+                    final String changelog = description;
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            PackageInfo pInfo = null;
+                            try {
+                                pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+                            } catch (PackageManager.NameNotFoundException e) {
+                                e.printStackTrace();
+                            }
+                            if (newVersion > pInfo.versionCode) {
+                                AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
+
+                                builder.setTitle("New update available!\nCurrent : v" + pInfo.versionCode + " Latest : v" + newVersion);
+                                String message = "Do you want to download the new version ?\n\n";
+                                if (changelog.length() > 0)
+                                    message += "Changelog :\n" + changelog;
+                                builder.setMessage(message);
+                                builder.setPositiveButton("Okay!", new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialogInterface, int i) {
+                                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://valxp.net/IFWatcher/IFWatcher.apk"));
+                                        startActivity(intent);
+                                    }
+                                });
+                                builder.setNegativeButton("Leave me alone", null);
+                                builder.create().show();
+                            } else {
+                                Toast.makeText(MapsActivity.this, "You are up to date ! (v" + pInfo.versionCode + ")", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
     }
 
     private class UpdateThread extends Thread {
@@ -267,62 +342,6 @@ public class MapsActivity extends FragmentActivity {
                 }
             }
         }
-    }
-
-    @Override
-    public void onConfigurationChanged(Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-    }
-
-    private void checkUpdate() {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-
-                URL url = null;
-                try {
-                    url = new URL("http://valxp.net/IFWatcher/version.txt");
-                } catch (MalformedURLException e) {
-                    e.printStackTrace();
-                }
-                try {
-                    InputStream stream = url.openStream();
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-                    String line = reader.readLine();
-                    final int newVersion = Integer.decode(line);
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            PackageInfo pInfo = null;
-                            try {
-                                pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
-                            } catch (PackageManager.NameNotFoundException e) {
-                                e.printStackTrace();
-                            }
-                            if (newVersion > pInfo.versionCode) {
-                                AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
-
-                                builder.setTitle("New update available! Current : v" + pInfo.versionCode + " latest : v" + newVersion);
-                                builder.setMessage("Do you want to download the new version ?");
-                                builder.setPositiveButton("Okay!", new DialogInterface.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialogInterface, int i) {
-                                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://valxp.net/IFWatcher/IFWatcher.apk"));
-                                        startActivity(intent);
-                                    }
-                                });
-                                builder.setNegativeButton("Leave me alone", null);
-                                builder.create().show();
-                            } else {
-                                Toast.makeText(MapsActivity.this, "You are up to date ! (v" + pInfo.versionCode + ")", Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                    });
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }).start();
     }
 
 }
