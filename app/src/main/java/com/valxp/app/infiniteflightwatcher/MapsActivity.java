@@ -41,8 +41,9 @@ import java.util.Map;
 
 public class MapsActivity extends FragmentActivity {
 
-    private static final long FLIGHT_MAX_LIFETIME_SECONDS = 60 * 10;
+    private static final long FLIGHT_MAX_LIFETIME_SECONDS = 60 * 3;
     private static final long MAX_INTERPOLATE_DURATION_MS = FLIGHT_MAX_LIFETIME_SECONDS * 1000;
+    private static final long MINIMUM_INTERPOLATION_SPEED_KTS = 40;
     private static final int REFRESH_UI_MS = 1000 / 15;
     private static final int REFRESH_API_MS = 8 * 1000;
     private static final int REFRESH_INFO_MS = 2 * 1000;
@@ -151,6 +152,9 @@ public class MapsActivity extends FragmentActivity {
                 // compute estimated new position based on speed
                 // Stop interpolating if data is too old
                 long delta = Math.min(now - data.reportTimestampUTC, MAX_INTERPOLATE_DURATION_MS);
+                // Disable interpolation if going below 40kts (probably taxiing)
+                if (data.speed < MINIMUM_INTERPOLATION_SPEED_KTS)
+                    delta = 0;
                 double distanceMeter = (data.speed * KTS_TO_M_PER_S) * (delta / 1000.0);
                 LatLng newPos = SphericalUtil.computeOffset(data.position, distanceMeter, data.bearing);
                 lastMarker.setPosition(newPos);

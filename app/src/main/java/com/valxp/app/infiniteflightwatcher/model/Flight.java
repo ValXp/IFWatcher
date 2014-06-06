@@ -171,7 +171,7 @@ public class Flight {
         public Double altitude;
 
         public boolean isOlderThan(FlightData other) {
-            return reportTimestampUTC > other.reportTimestampUTC;
+            return reportTimestampUTC < other.reportTimestampUTC;
         }
 
         public long getAgeMs() {
