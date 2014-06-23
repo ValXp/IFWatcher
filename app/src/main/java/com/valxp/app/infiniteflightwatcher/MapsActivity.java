@@ -10,6 +10,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
+import android.support.v4.util.LongSparseArray;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
@@ -47,8 +49,9 @@ public class MapsActivity extends FragmentActivity {
     private static final int REFRESH_UI_MS = 1000 / 15;
     private static final int REFRESH_API_MS = 8 * 1000;
     private static final int REFRESH_INFO_MS = 2 * 1000;
-    private static final int TRAIL_LENGTH = 50;
+    //private static final int TRAIL_LENGTH = 50;
     private static final double KTS_TO_M_PER_S = .52;
+
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private Thread mUpdateThread;
     private Fleet mFleet;
@@ -129,6 +132,35 @@ public class MapsActivity extends FragmentActivity {
         }
     }
 
+    private int valueToColor(double value, double maximum) {
+         int alpha = 0xFF;
+         int red = 0;
+         int green = 0;
+         int blue = 0;
+         double step = maximum / 5.0;
+
+         if (value <= step * 1) { // blue 100%. Green increasing
+             double inRatio = value / step;
+             blue = 0xff;
+             green = (int) (0xff * inRatio);
+         } else if (value <= step * 2) { // Green 100%. blue decreasing
+             double inRatio = (value - (1 * step)) / step;
+             green = 0xff;
+             blue = (int) (0xff * (1 - inRatio));
+         } else if (value <= step * 3) { //Green 100%. red increasing
+             double inRatio = (value - (2 * step)) / step;
+             green = 0xff;
+             red = (int) (0xff * inRatio);
+         } else if (value <= step * 4) { // Red 100%. green decreasing
+             double inRatio = (value - (3 * step)) / step;
+             red = 0xff;
+             green = (int) (0xff * (1 - inRatio));
+         } else {
+             red = 0xff;
+         }
+         return blue | (green << 8) | (red << 16) | (alpha << 24);
+     }
+
     private void updateMap() {
         mFleet.discardOldFlights(FLIGHT_MAX_LIFETIME_SECONDS);
         mNobodyPlayingText.setVisibility((mFleet.getActiveFleetSize() <= 0 && mFleet.isUpToDate()) ? View.VISIBLE : View.GONE);
@@ -138,88 +170,94 @@ public class MapsActivity extends FragmentActivity {
             mLastTimeInfoUpdated = now;
             updateInfo = true;
         }
+        int flightCount = -1;
         for (Map.Entry<String, Flight> flightEntry : mFleet.getFleet().entrySet()) {
+            ++flightCount;
             Flight flight = flightEntry.getValue();
-            List<Flight.FlightData> dataHistory = flight.getFlightHistory();
-            if (dataHistory.size() <= 0)
-                continue;
-            // We get the last location
-            Flight.FlightData data = dataHistory.get(dataHistory.size() - 1);
-            Marker lastMarker = flight.getMarker();
+            synchronized (flight) {
+                LongSparseArray<Flight.FlightData> dataHistory = flight.getFlightHistory();
+                if (dataHistory.size() <= 0)
+                    continue;
+                // We get the last location
+                Flight.FlightData data = dataHistory.valueAt(dataHistory.size() - 1);
+                Marker lastMarker = flight.getMarker();
 
-            // Marker update/creation
-            if (lastMarker != null) {
-                // compute estimated new position based on speed
-                // Stop interpolating if data is too old
-                long delta = Math.min(now - data.reportTimestampUTC, MAX_INTERPOLATE_DURATION_MS);
-                // Disable interpolation if going below 40kts (probably taxiing)
-                if (data.speed < MINIMUM_INTERPOLATION_SPEED_KTS)
-                    delta = 0;
-                double distanceMeter = (data.speed * KTS_TO_M_PER_S) * (delta / 1000.0);
-                LatLng newPos = SphericalUtil.computeOffset(data.position, distanceMeter, data.bearing);
-                lastMarker.setPosition(newPos);
-                if (delta > REFRESH_UI_MS) {
-                    Polyline line = flight.getAproxTrail();
-                    if (line == null) {
-                        PolylineOptions path = new PolylineOptions();
-                        path.width(3.0f);
-                        path.color(0xFFA0A000);
-                        line = mMap.addPolyline(path);
-                        flight.setAproxTrail(line);
+                // Marker update/creation
+                if (lastMarker != null) {
+                    // compute estimated new position based on speed
+                    // Stop interpolating if data is too old
+                    long delta = Math.min(now - data.reportTimestampUTC, MAX_INTERPOLATE_DURATION_MS);
+                    // Disable interpolation if going below 40kts (probably taxiing)
+                    if (data.speed < MINIMUM_INTERPOLATION_SPEED_KTS) {
+                        delta = 0;
+                        Polyline line = flight.getAproxTrail();
+                        if (line != null) {
+                            line.remove();
+                            flight.setAproxTrail(null);
+                        }
                     }
-                    List<LatLng> points = line.getPoints();
-                    points.clear();
-                    points.add(data.position);
-                    points.add(newPos);
-                    line.setPoints(points);
-                }
-                // Only update that stuff when once in a while
-                if (updateInfo) {
-                    lastMarker.setSnippet(toSnippet(data));
-                    lastMarker.setRotation(data.bearing.floatValue());
-                    // Refreshing the info window
-                    if (lastMarker.isInfoWindowShown()) {
-                        lastMarker.hideInfoWindow();
-                        lastMarker.showInfoWindow();
-                        mMap.animateCamera(CameraUpdateFactory.newLatLng(lastMarker.getPosition()));
-                    }
-                }
-            } else {
-                Marker marker = mMap.addMarker(new MarkerOptions().position(data.position).title(toTitle(flight))
-                        .rotation(data.bearing.floatValue()).snippet(toSnippet(data))
-                        .icon(mBitmapProvider.getAsset(flight))
-                        .anchor(.5f, .5f)
-                        .infoWindowAnchor(.5f, .5f)
-                        .flat(true)); // Flat will keep the rotation based on the north
-                flight.setMarker(marker);
-            }
-
-            // Updating the trail. Ignore if there is no actual update
-            if (dataHistory.size() > 1) {
-                Polyline lastLine = flight.getHistoryTrail();
-                if (lastLine != null) {
-                    List<LatLng> points = lastLine.getPoints();
-                    if (points.size() <= 0 ||
-                            !points.get(points.size() - 1).equals(dataHistory.get(dataHistory.size() - 1).position)) {
+                    double distanceMeter = (data.speed * KTS_TO_M_PER_S) * (delta / 1000.0);
+                    LatLng newPos = SphericalUtil.computeOffset(data.position, distanceMeter, data.bearing);
+                    lastMarker.setPosition(newPos);
+                    if (delta > REFRESH_UI_MS) {
+                        Polyline line = flight.getAproxTrail();
+                        if (line == null) {
+                            PolylineOptions path = new PolylineOptions();
+                            path.width(3.0f);
+                            path.color(0xFFA0A000);
+                            line = mMap.addPolyline(path);
+                            flight.setAproxTrail(line);
+                        }
+                        List<LatLng> points = line.getPoints();
                         points.clear();
-                        // Removing old history
-                        while (dataHistory.size() - TRAIL_LENGTH > 0) {
-                            dataHistory.remove(0);
+                        points.add(data.position);
+                        points.add(newPos);
+                        line.setPoints(points);
+                    }
+                    // Only update that stuff when once in a while
+                    if (updateInfo) {
+                        lastMarker.setSnippet(toSnippet(data));
+                        lastMarker.setRotation(data.bearing.floatValue());
+                        // Refreshing the info window
+                        if (lastMarker.isInfoWindowShown()) {
+                            lastMarker.hideInfoWindow();
+                            lastMarker.showInfoWindow();
+                            mMap.animateCamera(CameraUpdateFactory.newLatLng(lastMarker.getPosition()));
                         }
-                        for (int cur = 0; cur < dataHistory.size(); ++cur) {
-                            points.add(dataHistory.get(cur).position);
-                        }
-                        lastLine.setPoints(points);
                     }
                 } else {
-                    PolylineOptions path = new PolylineOptions();
-                    path.width(3.0f);
-                    path.color(0xFF00A000);
-                    for (Flight.FlightData pathData : dataHistory) {
-                        path.add(pathData.position);
+                    Marker marker = mMap.addMarker(new MarkerOptions().position(data.position).title(toTitle(flight))
+                            .rotation(data.bearing.floatValue()).snippet(toSnippet(data))
+                            .icon(mBitmapProvider.getAsset(flight))
+                            .anchor(.5f, .5f)
+                            .infoWindowAnchor(.5f, .5f)
+                            .flat(true)); // Flat will keep the rotation based on the north
+                    flight.setMarker(marker);
+                }
+
+                // Updating the trail. Ignore if there is no actual update
+                if (dataHistory.size() > 1) {
+                    Polyline lastLine = flight.getHistoryTrail();
+                    if (lastLine != null) {
+                        List<LatLng> points = lastLine.getPoints();
+                        if (points.size() <= 0 ||
+                                !points.get(points.size() - 1).equals(dataHistory.valueAt(dataHistory.size() - 1).position)) {
+                            points.clear();
+                            for (int cur = 0; cur < dataHistory.size(); ++cur) {
+                                points.add(dataHistory.valueAt(cur).position);
+                            }
+                            lastLine.setPoints(points);
+                        }
+                    } else {
+                        PolylineOptions path = new PolylineOptions();
+                        path.width(3.0f);
+                        path.color(valueToColor(flightCount, mFleet.getFleet().size()));
+                        for (int i = 0; i < dataHistory.size(); ++i) {
+                            path.add(dataHistory.valueAt(i).position);
+                        }
+                        Polyline line = mMap.addPolyline(path);
+                        flight.setHistoryTrail(line);
                     }
-                    Polyline line = mMap.addPolyline(path);
-                    flight.setHistoryTrail(line);
                 }
             }
 
