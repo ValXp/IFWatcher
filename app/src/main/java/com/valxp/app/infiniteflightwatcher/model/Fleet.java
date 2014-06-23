@@ -2,6 +2,7 @@ package com.valxp.app.infiniteflightwatcher.model;
 
 import android.util.JsonReader;
 import android.util.Log;
+import android.util.Pair;
 
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.Polyline;
@@ -36,6 +37,15 @@ public class Fleet {
         synchronized (this) {
             parseFlightList(apiData);
         }
+
+        for (Map.Entry<String, Flight> data : mFleet.entrySet()) {
+            Flight value = data.getValue();
+            if (value.isNewFlight()) {
+                value.pullFullFlight();
+                value.setIsNewFlight(false);
+            }
+        }
+
         mIsUpToDate = true;
     }
 
@@ -76,10 +86,15 @@ public class Fleet {
 
     private void parseFlight(Map<String, Flight> flights, JsonReader reader) throws IOException {
         Flight tempFlight = new Flight(reader);
+        if (tempFlight.getAgeMs() / 1000 > 60 * 3) {
+            return;
+        }
         Flight found = flights.get(tempFlight.getFlightID());
         if (found == null) {
+            tempFlight.setIsNewFlight(true);
             flights.put(tempFlight.getFlightID(), tempFlight);
         } else {
+            tempFlight.setIsNewFlight(false);
             found.addFlightData(tempFlight.getFlightHistory());
         }
     }
