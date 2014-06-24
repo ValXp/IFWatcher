@@ -18,6 +18,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.util.Date;
+import java.util.List;
 
 /**
  * Created by ValXp on 5/20/14.
@@ -32,9 +33,9 @@ public class Flight {
 
     private LongSparseArray<FlightData> mFlightHistory;
     private Marker mMarker;
-    private Polyline mHistoryTrail;
+    private List<Polyline> mHistoryTrail;
     private Polyline mAproxTrail;
-    private boolean mIsNewFlight = true;
+    private boolean mNeedsUpdate = false;
 
     public Flight(JsonReader reader) throws IOException {
         reader.beginObject();
@@ -173,11 +174,11 @@ public class Flight {
         this.mMarker = mMarker;
     }
 
-    public Polyline getHistoryTrail() {
+    public List<Polyline> getHistoryTrail() {
         return mHistoryTrail;
     }
 
-    public void setHistoryTrail(Polyline mPolyLine) {
+    public void setHistoryTrail(List<Polyline> mPolyLine) {
         this.mHistoryTrail = mPolyLine;
     }
 
@@ -189,12 +190,12 @@ public class Flight {
         this.mAproxTrail = mAproxTrail;
     }
 
-    public boolean isNewFlight() {
-        return mIsNewFlight;
+    public boolean getNeedsUpdate() {
+        return mNeedsUpdate;
     }
 
-    public void setIsNewFlight(boolean isNew) {
-        mIsNewFlight = isNew;
+    public void setNeedsUpdate(boolean isNew) {
+        mNeedsUpdate = isNew;
     }
 
     public long getAgeMs() {

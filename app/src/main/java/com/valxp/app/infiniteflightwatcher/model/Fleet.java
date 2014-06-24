@@ -2,7 +2,6 @@ package com.valxp.app.infiniteflightwatcher.model;
 
 import android.util.JsonReader;
 import android.util.Log;
-import android.util.Pair;
 
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.Polyline;
@@ -13,8 +12,10 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -23,30 +24,40 @@ import java.util.Map;
 public class Fleet {
     private Map<String, Flight> mFleet;
     private boolean mIsUpToDate;
+    private boolean mIsUpdating = false;
 
     public Fleet() {
         mFleet = new HashMap<String, Flight>();
         mIsUpToDate = false;
     }
 
-    public void updateFleet() {
+    public Runnable updateFleet(long thresholdInSeconds) {
+        synchronized (this) {
+            if (mIsUpdating)
+                return null;
+            mIsUpdating = true;
+        }
         InputStream apiData = fetchJson();
         if (apiData == null) {
-            return;
+            mIsUpdating = false;
+            return null;
         }
-        synchronized (this) {
-            parseFlightList(apiData);
-        }
+
+        parseFlightList(apiData);
+
+        Runnable forUIThread = discardOldFlights(thresholdInSeconds);
 
         for (Map.Entry<String, Flight> data : mFleet.entrySet()) {
             Flight value = data.getValue();
-            if (value.isNewFlight()) {
+            if (value.getNeedsUpdate()) {
                 value.pullFullFlight();
-                value.setIsNewFlight(false);
+                value.setNeedsUpdate(false);
             }
         }
 
         mIsUpToDate = true;
+        mIsUpdating = false;
+        return forUIThread;
     }
 
     public Map<String, Flight> getFleet() {
@@ -68,7 +79,7 @@ public class Fleet {
         return null;
     }
 
-    private void parseFlightList(InputStream json) {
+    synchronized private void parseFlightList(InputStream json) {
         JsonReader reader = new JsonReader(new InputStreamReader(json));
         try {
             // The root is an array of flights
@@ -91,10 +102,8 @@ public class Fleet {
         }
         Flight found = flights.get(tempFlight.getFlightID());
         if (found == null) {
-            tempFlight.setIsNewFlight(true);
             flights.put(tempFlight.getFlightID(), tempFlight);
         } else {
-            tempFlight.setIsNewFlight(false);
             found.addFlightData(tempFlight.getFlightHistory());
         }
     }
@@ -108,23 +117,36 @@ public class Fleet {
         return activeFlights;
     }
 
-    synchronized public void discardOldFlights(long thresholdInSeconds) {
+    synchronized private Runnable discardOldFlights(long thresholdInSeconds) {
+        final List<Polyline> linesToRemove = new ArrayList<Polyline>();
+        final List<Marker> markersToRemove = new ArrayList<Marker>();
+
         for (Iterator<Map.Entry<String, Flight>> it = mFleet.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<String, Flight> entry = it.next();
             if (entry.getValue().getAgeMs() / 1000 > thresholdInSeconds) {
                 Log.d("Fleet", "Removing old flight (" + (entry.getValue().getAgeMs() / 60000) + " minutes old): " + entry.getValue().toString());
                 Marker mark = entry.getValue().getMarker();
-                Polyline line = entry.getValue().getHistoryTrail();
+                List<Polyline> lines = entry.getValue().getHistoryTrail();
+                if (lines != null) {
+                    linesToRemove.addAll(lines);
+                }
                 Polyline aproxLine = entry.getValue().getAproxTrail();
-                if (mark != null)
-                    mark.remove();
-                if (line != null)
-                    line.remove();
                 if (aproxLine != null)
-                    aproxLine.remove();
+                    linesToRemove.add(aproxLine);
+                if (mark != null)
+                    markersToRemove.add(mark);
                 it.remove();
             }
         }
+        return new Runnable() {
+            @Override
+            public void run() {
+                for (Polyline line : linesToRemove)
+                    line.remove();
+                for (Marker mark : markersToRemove)
+                    mark.remove();
+            }
+        };
     }
 
     public boolean isUpToDate() {
