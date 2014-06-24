@@ -58,6 +58,7 @@ public class AirplaneBitmapProvider {
         mAirplaneNameToAssetName.put("Space Shuttle", "shuttle");
         mAirplaneNameToAssetName.put("Spitfire", "spitfire");
         mAirplaneNameToAssetName.put("Cirrus SR22", "sr22");
+        mAirplaneNameToAssetName.put("Cessna Citation X", "ccx");
     }
 
     private void loadAssets(Class<?> clazz) throws IllegalAccessException {
