@@ -10,25 +10,28 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
-import android.util.Log;
-import android.util.SparseArray;
 import android.view.View;
+import android.view.animation.AlphaAnimation;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.support.v4.util.LongSparseArray;
 
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.maps.model.VisibleRegion;
 import com.google.maps.android.SphericalUtil;
 import com.valxp.app.infiniteflightwatcher.model.Fleet;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
+
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -64,7 +67,62 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private TextView mRefreshingText;
     private AirplaneBitmapProvider mBitmapProvider;
     private Marker mLastVisibleMarker = null;
+    private InfoPane mInfoPane;
 
+
+    private class InfoPane {
+        private TextView mCallSign;
+        private TextView mPlane;
+        private TextView mSpeed;
+        private TextView mAltitude;
+        private TextView mLastUpdate;
+        private List<View> mSeparators;
+
+        public InfoPane() {
+            mCallSign = (TextView) findViewById(R.id.callSign);
+            mPlane = (TextView) findViewById(R.id.plane);
+            mSpeed = (TextView) findViewById(R.id.speed);
+            mAltitude = (TextView) findViewById(R.id.altitude);
+            mLastUpdate = (TextView) findViewById(R.id.lastUpdate);
+            mSeparators = new ArrayList<View>();
+            mSeparators.add(findViewById(R.id.sep1));
+            mSeparators.add(findViewById(R.id.sep2));
+            mSeparators.add(findViewById(R.id.sep3));
+            mSeparators.add(findViewById(R.id.sep4));
+            mSeparators.add(findViewById(R.id.sep5));
+            hide();
+        }
+
+        private void setVisibility(int visibility) {
+            mCallSign.setVisibility(visibility);
+            mPlane.setVisibility(visibility);
+            mSpeed.setVisibility(visibility);
+            mAltitude.setVisibility(visibility);
+            mLastUpdate.setVisibility(visibility);
+            for (View v : mSeparators) {
+                v.setVisibility(visibility);
+            }
+        }
+
+        public void show(String callSign, String plane, Long speed, Long altitude, Long lastUpdateSeconds) {
+            setVisibility(View.VISIBLE);
+            mCallSign.setText(callSign);
+            mPlane.setText(plane);
+            mSpeed.setText(speed + " kts");
+            mAltitude.setText(altitude + " feet");
+            String lastUpdate = "";
+            if (lastUpdateSeconds > 0)
+                if (lastUpdateSeconds > 60)
+                    lastUpdate = (lastUpdateSeconds / 60) + " minute" + (lastUpdateSeconds / 60 > 1 ? "s" : "") + " ago";
+                else
+                    lastUpdate = lastUpdateSeconds + " second" + (lastUpdateSeconds > 1 ? "s" : "") + " ago";
+            mLastUpdate.setText(lastUpdate);
+        }
+
+        public void hide() {
+            setVisibility(View.GONE);
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,7 +131,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         setUpMapIfNeeded();
         mFleet = new Fleet();
         mBitmapProvider = new AirplaneBitmapProvider();
-
+        mInfoPane = new InfoPane();
         Button button = (Button) findViewById(R.id.toggleMapType);
         mNobodyPlayingText = (TextView) findViewById(R.id.nobody_is_playing);
         mRefreshingText = (TextView) findViewById(R.id.refreshing_data);
@@ -178,6 +236,9 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             mLastTimeInfoUpdated = now;
             updateInfo = true;
         }
+
+        LatLngBounds boundaries = mMap.getProjection().getVisibleRegion().latLngBounds;
+
         for (Map.Entry<String, Flight> flightEntry : mFleet.getFleet().entrySet()) {
             Flight flight = flightEntry.getValue();
 
@@ -192,7 +253,24 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 // We get the last location
                 Flight.FlightData data = dataHistory.valueAt(dataHistory.size() - 1);
                 Marker lastMarker = flight.getMarker();
-
+                // If we are outside the map, we don't need to show the marker
+                if (!boundaries.contains(data.position)
+                    && (lastMarker == null || !boundaries.contains(lastMarker.getPosition()))) {
+                    if (lastMarker != null)
+                        lastMarker.remove();
+                    Polyline line = flight.getAproxTrail();
+                    if (line != null)
+                        line.remove();
+                    flight.setAproxTrail(null);
+                    if (lastMarker == mLastVisibleMarker) {
+                        mLastVisibleMarker = null;
+                        selectedFlight = null;
+                        hideInfoPane();
+                        removePath(flight);
+                    }
+                    flight.setMarker(null);
+                    continue;
+                }
                 // Marker update/creation
                 if (lastMarker != null) {
                     // compute estimated new position based on speed
@@ -204,38 +282,38 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                         Polyline line = flight.getAproxTrail();
                         if (line != null) {
                             line.remove();
-                            flight.setAproxTrail(null);
                         }
+                        flight.setAproxTrail(null);
                     }
                     double distanceMeter = (data.speed * KTS_TO_M_PER_S) * (delta / 1000.0);
                     LatLng newPos = SphericalUtil.computeOffset(data.position, distanceMeter, data.bearing);
                     lastMarker.setPosition(newPos);
                     lastMarker.setRotation(data.bearing.floatValue());
                 } else {
-                    Marker marker = mMap.addMarker(new MarkerOptions().position(data.position).title(toTitle(flight))
-                            .rotation(data.bearing.floatValue()).snippet(toSnippet(data))
+                    Marker marker = mMap.addMarker(new MarkerOptions().position(data.position)
+                            .rotation(data.bearing.floatValue())
                             .icon(mBitmapProvider.getAsset(flight))
                             .anchor(.5f, .5f)
-                            .infoWindowAnchor(.5f, .5f)
                             .flat(true)); // Flat will keep the rotation based on the north
                     flight.setMarker(marker);
                 }
             }
         }
+
+        // We still have a selected marker but the flight is not there. Hiding info.
+        if (selectedFlight == null && mLastVisibleMarker != null) {
+            mLastVisibleMarker = null;
+            hideInfoPane();
+        }
         // Updating selected marker
         if (selectedFlight != null && mLastVisibleMarker != null) {
-            Marker marker = mLastVisibleMarker;
             synchronized (selectedFlight) {
                 LongSparseArray<Flight.FlightData> dataHistory = selectedFlight.getFlightHistory();
                 Flight.FlightData data = dataHistory.valueAt(dataHistory.size() - 1);
                 // Only update that stuff when once in a while
                 if (updateInfo) {
-                    marker.setSnippet(toSnippet(data));
-                    // Refreshing the info window
-                    if (marker.isInfoWindowShown()) {
-                        marker.hideInfoWindow();
-                        marker.showInfoWindow();
-                    }
+                    showInfoPane(selectedFlight);
+                    mMap.animateCamera(CameraUpdateFactory.newLatLng(mLastVisibleMarker.getPosition()));
                 }
                 long delta = Math.min(now - data.reportTimestampUTC, MAX_INTERPOLATE_DURATION_MS);
                 if (delta > REFRESH_UI_MS) {
@@ -244,6 +322,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                     if (line == null) {
                         selectedFlight.setAproxTrail(coloredPolyline(data.speed, data.altitude, data.position, newPos));
                     } else {
+                        updateLine(line, data.speed, data.altitude);
                         List<LatLng> points = line.getPoints();
                         points.clear();
                         points.add(data.position);
@@ -254,22 +333,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 updatePath(selectedFlight);
             }
         }
-    }
-
-    private String toTitle(Flight flight) {
-        return flight.getAircraftName() + " | " + flight.getDisplayName() + (flight.getCallSign() == null ? "" : " | " + flight.getCallSign());
-    }
-
-    private String toSnippet(Flight.FlightData data) {
-
-        int seconds = (int) (data.getAgeMs()) / 1000;
-        String out = data.speed.intValue() + " kts | " + data.altitude.intValue() + " ft";
-        if (seconds > 0)
-            if (seconds > 60)
-                out += " | " + (seconds / 60) + " minute" + (seconds / 60 > 1 ? "s" : "") + " ago";
-            else
-                out += " | " + seconds + " second" + (seconds > 1 ? "s" : "") + " ago";
-        return out;
     }
 
     @Override
@@ -425,6 +488,11 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             flight.setHistoryTrail(trail);
     }
 
+    private void updateLine(Polyline line, double speed, double altitude) {
+        line.setColor(valueToColor(altitude / MAX_ALTITUDE));
+        line.setWidth(1.0f + (float)(speed / 100.0));
+    }
+
     private Polyline coloredPolyline(double speed, double altitude, LatLng first, LatLng second) {
         PolylineOptions path = new PolylineOptions();
         path.width(1.0f + (float)(speed / 100.0));
@@ -440,12 +508,11 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
     @Override
     public boolean onMarkerClick(Marker marker) {
-        if (mLastVisibleMarker != null)
-            mLastVisibleMarker.hideInfoWindow();
         synchronized (mFleet) {
             setPathVisible(marker);
         }
-        marker.showInfoWindow();
+
+        showInfoPane(marker);
         mMap.animateCamera(CameraUpdateFactory.newLatLng(marker.getPosition()));
         return true;
     }
@@ -455,11 +522,31 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         synchronized (mFleet) {
             setPathVisible(null);
         }
+        hideInfoPane();
     }
 
     private void requestPathUpdate(Flight flight) {
         flight.setNeedsUpdate(true);
         mUpdateThread.requestWake();
+    }
+
+    private void hideInfoPane() {
+        mInfoPane.hide();
+    }
+
+    private void showInfoPane(Flight flight) {
+        LongSparseArray<Flight.FlightData> history = flight.getFlightHistory();
+        Flight.FlightData lastData = history.valueAt(history.size() - 1);
+        mInfoPane.show(flight.getCallSign(), flight.getAircraftName(), lastData.speed.longValue(), lastData.altitude.longValue(), lastData.getAgeMs() / 1000);
+    }
+
+    private void showInfoPane(Marker marker) {
+        Flight found = flightForMarker(marker);
+        if (found != null) {
+            synchronized (found) {
+                showInfoPane(found);
+            }
+        }
     }
 
     private class UpdateThread extends Thread {
