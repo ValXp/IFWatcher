@@ -35,16 +35,69 @@
             android:textColor="@android:color/black"
             android:textSize="20sp" />
 
-        <TextView
-            android:id="@+id/refreshing_data"
+
+        <LinearLayout
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:background="@android:color/darker_gray"
+            android:orientation="vertical"
             android:layout_gravity="bottom|left"
             android:layout_margin="5dp"
-            android:background="@android:color/darker_gray"
-            android:padding="5dp"
-            android:text="@string/refreshing_data"
-            android:textColor="@android:color/black" />
+            android:layout_height="wrap_content">
+            <TextView
+                style="@style/InfoText"
+                android:visibility="gone"
+                android:id="@+id/callSign"
+                />
+            <View
+                android:id="@+id/sep1"
+                style="@style/separator"
+                />
+            <TextView
+                style="@style/InfoText"
+                android:visibility="gone"
+                android:id="@+id/plane"
+                />
+            <View
+                android:id="@+id/sep2"
+                style="@style/separator"
+                />
+            <TextView
+                style="@style/InfoText"
+                android:visibility="gone"
+                android:id="@+id/speed"
+                />
+            <View
+                android:id="@+id/sep3"
+                style="@style/separator"
+                />
+            <TextView
+                style="@style/InfoText"
+                android:visibility="gone"
+                android:id="@+id/altitude"
+                />
+            <View
+                android:id="@+id/sep4"
+                style="@style/separator"
+                />
+            <TextView
+                style="@style/InfoText"
+                android:visibility="gone"
+                android:id="@+id/lastUpdate"
+                />
+            <View
+                android:id="@+id/sep5"
+                style="@style/separator"
+                android:layout_height="2dp"
+                android:layout_margin="0dp"
+                />
+
+            <TextView
+                style="@style/InfoText"
+                android:id="@+id/refreshing_data"
+                android:text="@string/refreshing_data"
+                />
+
+        </LinearLayout>
     </FrameLayout>
     <ExpandableListView
         android:id="@+id/expandableList"
