@@ -16,97 +16,79 @@
             android:layout_height="match_parent"
             tools:context="com.valxp.app.infiniteflightwatcher.app.MapsActivity" />
 
-        <Button
-            android:id="@+id/toggleMapType"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="right|top"
+        <LinearLayout
+            android:orientation="vertical"
             android:layout_margin="5dp"
-            android:text="@string/button_toggle_type" />
+            android:layout_gravity="right|top"
+            android:gravity="right|top"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+            <Button
+                style="?android:attr/borderlessButtonStyle"
+                android:id="@+id/toggleMapType"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/button_toggle_type" />
+            <TextView
+                style="@style/InfoText"
+                android:id="@+id/refreshing_data"
+                android:text="@string/refreshing_data"
+                android:background="@drawable/shadowed_ui_background"
+                android:layout_margin="5dp"
+                />
+
+        </LinearLayout>
 
         <TextView
             android:id="@+id/nobody_is_playing"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:background="@android:color/darker_gray"
-            android:padding="5dp"
+            android:background="@drawable/shadowed_ui_background"
             android:text="@string/nobody_is_playing"
             android:textColor="@android:color/black"
             android:textSize="20sp" />
 
 
-        <LinearLayout
+        <com.valxp.app.infiniteflightwatcher.InfoPane xmlns:android="http://schemas.android.com/apk/res/android"
+            android:id="@+id/info_pane"
+            android:visibility="gone"
             android:layout_width="wrap_content"
-            android:background="@android:color/darker_gray"
-            android:orientation="vertical"
+            android:background="@drawable/shadowed_ui_background"
+            android:orientation="horizontal"
             android:layout_gravity="bottom|left"
             android:layout_margin="5dp"
+            android:animateLayoutChanges="true"
             android:layout_height="wrap_content">
-            <TextView
-                style="@style/InfoText"
-                android:visibility="gone"
-                android:id="@+id/callSign"
-                />
-            <View
-                android:id="@+id/sep1"
-                style="@style/separator"
-                />
-            <TextView
-                style="@style/InfoText"
-                android:visibility="gone"
-                android:id="@+id/plane"
-                />
-            <View
-                android:id="@+id/sep2"
-                style="@style/separator"
-                />
-            <TextView
-                style="@style/InfoText"
-                android:visibility="gone"
-                android:id="@+id/speed"
-                />
-            <View
-                android:id="@+id/sep3"
-                style="@style/separator"
-                />
-            <TextView
-                style="@style/InfoText"
-                android:visibility="gone"
-                android:id="@+id/altitude"
-                />
-            <View
-                android:id="@+id/sep4"
-                style="@style/separator"
-                />
-            <TextView
-                style="@style/InfoText"
-                android:visibility="gone"
-                android:id="@+id/lastUpdate"
-                />
-            <View
-                android:id="@+id/sep5"
-                style="@style/separator"
-                android:layout_height="2dp"
-                android:layout_margin="0dp"
-                />
+            <LinearLayout
+                android:id="@+id/right_pane"
+                android:orientation="vertical"
+                android:padding="3dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
 
-            <TextView
-                style="@style/InfoText"
-                android:id="@+id/refreshing_data"
-                android:text="@string/refreshing_data"
+            </LinearLayout>
+            <View
+                style="@style/vertical_separator"
                 />
+            <LinearLayout
+                android:id="@+id/left_pane"
+                android:orientation="vertical"
+                android:padding="3dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
 
-        </LinearLayout>
+            </LinearLayout>
+
+        </com.valxp.app.infiniteflightwatcher.InfoPane>
     </FrameLayout>
     <ExpandableListView
         android:id="@+id/expandableList"
         android:layout_width="320dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:background="@android:color/darker_gray"
+        android:background="@drawable/soon"
         >
-
     </ExpandableListView>
 </android.support.v4.widget.DrawerLayout>
 

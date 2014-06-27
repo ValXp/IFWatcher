@@ -6,10 +6,17 @@ import android.util.Log;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.Polyline;
 import com.valxp.app.infiniteflightwatcher.APIConstants;
+import com.valxp.app.infiniteflightwatcher.Webservices;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -17,18 +24,23 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 
 /**
  * Created by ValXp on 5/20/14.
  */
 public class Fleet {
-    private Map<String, Flight> mFleet;
+    private Map<Users.User, Flight> mFleet;
+    private Users mUsers;
     private boolean mIsUpToDate;
     private boolean mIsUpdating = false;
+    private List<Flight> mFlightsToRemove;
 
     public Fleet() {
-        mFleet = new HashMap<String, Flight>();
+        mFleet = new HashMap<Users.User, Flight>();
+        mFlightsToRemove = new ArrayList<Flight>();
         mIsUpToDate = false;
+        mUsers = new Users();
     }
 
     public Runnable updateFleet(long thresholdInSeconds) {
@@ -37,17 +49,13 @@ public class Fleet {
                 return null;
             mIsUpdating = true;
         }
-        InputStream apiData = fetchJson();
-        if (apiData == null) {
-            mIsUpdating = false;
-            return null;
-        }
 
-        parseFlightList(apiData);
+        parseFlightList(Webservices.getJSON(APIConstants.APICalls.FLIGHTS));
 
         Runnable forUIThread = discardOldFlights(thresholdInSeconds);
 
-        for (Map.Entry<String, Flight> data : mFleet.entrySet()) {
+
+        for (Map.Entry<Users.User, Flight> data : mFleet.entrySet()) {
             Flight value = data.getValue();
             if (value.getNeedsUpdate()) {
                 value.pullFullFlight();
@@ -55,62 +63,54 @@ public class Fleet {
             }
         }
 
+        mUsers.update(false);
+
         mIsUpToDate = true;
         mIsUpdating = false;
         return forUIThread;
     }
 
-    public Map<String, Flight> getFleet() {
+    public Map<Users.User, Flight> getFleet() {
         return mFleet;
     }
 
-    private InputStream fetchJson() {
-        URL url = null;
-        try {
-            url = new URL(APIConstants.APICalls.FLIGHTS.toString());
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
-        try {
-            return url.openStream();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
 
-    synchronized private void parseFlightList(InputStream json) {
-        JsonReader reader = new JsonReader(new InputStreamReader(json));
+    synchronized private void parseFlightList(JSONArray array) {
+        if (array == null)
+            return;
         try {
-            // The root is an array of flights
-            reader.beginArray();
-
-            // Now looping through them
-            while (reader.hasNext()) {
-                parseFlight(mFleet, reader);
+            for (int i = 0; i < array.length(); ++i) {
+                parseFlight(array.getJSONObject(i));
             }
-        } catch (IOException e) {
+        } catch (JSONException e) {
             e.printStackTrace();
         }
     }
 
 
-    private void parseFlight(Map<String, Flight> flights, JsonReader reader) throws IOException {
-        Flight tempFlight = new Flight(reader);
+    private void parseFlight(JSONObject object) throws JSONException {
+        Flight tempFlight = new Flight(mUsers, object);
         if (tempFlight.getAgeMs() / 1000 > 60 * 3) {
             return;
         }
-        Flight found = flights.get(tempFlight.getFlightID());
+        Flight found = mFleet.get(tempFlight.getUser());
         if (found == null) {
-            flights.put(tempFlight.getFlightID(), tempFlight);
-        } else {
+            mFleet.put(tempFlight.getUser(), tempFlight);
+            tempFlight.getUser().markForUpdate();
+        } else if (tempFlight.getFlightID().equals(found.getFlightID())) {
             found.addFlightData(tempFlight.getFlightHistory());
+        } else {
+            boolean keepFound = found.getLastReportUTC() > tempFlight.getLastReportUTC();
+            Flight toRemove = keepFound ? tempFlight : found;
+            Flight toKeep = keepFound ? found : tempFlight;
+            removeFlight(toRemove);
+            mFleet.put(toKeep.getUser(), toKeep);
         }
     }
 
     public int getActiveFleetSize() {
         int activeFlights = 0;
-        for (Map.Entry<String, Flight> entry : mFleet.entrySet()) {
+        for (Map.Entry<Users.User, Flight> entry : mFleet.entrySet()) {
             if (entry.getValue().getFlightHistory().size() > 0)
                 activeFlights++;
         }
@@ -121,23 +121,19 @@ public class Fleet {
         final List<Polyline> linesToRemove = new ArrayList<Polyline>();
         final List<Marker> markersToRemove = new ArrayList<Marker>();
 
-        for (Iterator<Map.Entry<String, Flight>> it = mFleet.entrySet().iterator(); it.hasNext(); ) {
-            Map.Entry<String, Flight> entry = it.next();
+        for (Iterator<Map.Entry<Users.User, Flight>> it = mFleet.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<Users.User, Flight> entry = it.next();
             if (entry.getValue().getAgeMs() / 1000 > thresholdInSeconds) {
-                Log.d("Fleet", "Removing old flight (" + (entry.getValue().getAgeMs() / 60000) + " minutes old): " + entry.getValue().toString());
-                Marker mark = entry.getValue().getMarker();
-                List<Polyline> lines = entry.getValue().getHistoryTrail();
-                if (lines != null) {
-                    linesToRemove.addAll(lines);
-                }
-                Polyline aproxLine = entry.getValue().getAproxTrail();
-                if (aproxLine != null)
-                    linesToRemove.add(aproxLine);
-                if (mark != null)
-                    markersToRemove.add(mark);
+                removeFlight(entry.getValue(), linesToRemove, markersToRemove);
                 it.remove();
             }
         }
+
+        for (Iterator<Flight> it = mFlightsToRemove.iterator(); it.hasNext();) {
+            removeFlight(it.next(), linesToRemove, markersToRemove);
+            it.remove();
+        }
+
         return new Runnable() {
             @Override
             public void run() {
@@ -147,6 +143,24 @@ public class Fleet {
                     mark.remove();
             }
         };
+    }
+
+    private void removeFlight(Flight flight, List<Polyline> linesToRemove, List<Marker> markersToRemove) {
+        Log.d("Fleet", "Removing old flight (" + (flight.getAgeMs() / 60000) + " minutes old): " + flight.toString());
+        Marker mark = flight.getMarker();
+        List<Polyline> lines = flight.getHistoryTrail();
+        if (lines != null) {
+            linesToRemove.addAll(lines);
+        }
+        Polyline aproxLine = flight.getAproxTrail();
+        if (aproxLine != null)
+            linesToRemove.add(aproxLine);
+        if (mark != null)
+            markersToRemove.add(mark);
+    }
+
+    private void removeFlight(Flight flight) {
+        mFlightsToRemove.add(flight);
     }
 
     public boolean isUpToDate() {

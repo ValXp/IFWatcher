@@ -11,13 +11,11 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
 import android.view.View;
-import android.view.animation.AlphaAnimation;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.support.v4.util.LongSparseArray;
 
-import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -25,12 +23,14 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
-import com.google.android.gms.maps.model.VisibleRegion;
 import com.google.maps.android.SphericalUtil;
 import com.valxp.app.infiniteflightwatcher.model.Fleet;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
+import com.valxp.app.infiniteflightwatcher.model.Regions;
+import com.valxp.app.infiniteflightwatcher.model.Users;
 
 
 import java.io.BufferedReader;
@@ -68,61 +68,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private AirplaneBitmapProvider mBitmapProvider;
     private Marker mLastVisibleMarker = null;
     private InfoPane mInfoPane;
+    private Regions mRegions;
 
-
-    private class InfoPane {
-        private TextView mCallSign;
-        private TextView mPlane;
-        private TextView mSpeed;
-        private TextView mAltitude;
-        private TextView mLastUpdate;
-        private List<View> mSeparators;
-
-        public InfoPane() {
-            mCallSign = (TextView) findViewById(R.id.callSign);
-            mPlane = (TextView) findViewById(R.id.plane);
-            mSpeed = (TextView) findViewById(R.id.speed);
-            mAltitude = (TextView) findViewById(R.id.altitude);
-            mLastUpdate = (TextView) findViewById(R.id.lastUpdate);
-            mSeparators = new ArrayList<View>();
-            mSeparators.add(findViewById(R.id.sep1));
-            mSeparators.add(findViewById(R.id.sep2));
-            mSeparators.add(findViewById(R.id.sep3));
-            mSeparators.add(findViewById(R.id.sep4));
-            mSeparators.add(findViewById(R.id.sep5));
-            hide();
-        }
-
-        private void setVisibility(int visibility) {
-            mCallSign.setVisibility(visibility);
-            mPlane.setVisibility(visibility);
-            mSpeed.setVisibility(visibility);
-            mAltitude.setVisibility(visibility);
-            mLastUpdate.setVisibility(visibility);
-            for (View v : mSeparators) {
-                v.setVisibility(visibility);
-            }
-        }
-
-        public void show(String callSign, String plane, Long speed, Long altitude, Long lastUpdateSeconds) {
-            setVisibility(View.VISIBLE);
-            mCallSign.setText(callSign);
-            mPlane.setText(plane);
-            mSpeed.setText(speed + " kts");
-            mAltitude.setText(altitude + " feet");
-            String lastUpdate = "";
-            if (lastUpdateSeconds > 0)
-                if (lastUpdateSeconds > 60)
-                    lastUpdate = (lastUpdateSeconds / 60) + " minute" + (lastUpdateSeconds / 60 > 1 ? "s" : "") + " ago";
-                else
-                    lastUpdate = lastUpdateSeconds + " second" + (lastUpdateSeconds > 1 ? "s" : "") + " ago";
-            mLastUpdate.setText(lastUpdate);
-        }
-
-        public void hide() {
-            setVisibility(View.GONE);
-        }
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -131,7 +78,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         setUpMapIfNeeded();
         mFleet = new Fleet();
         mBitmapProvider = new AirplaneBitmapProvider();
-        mInfoPane = new InfoPane();
+        mInfoPane = (InfoPane) findViewById(R.id.info_pane);
         Button button = (Button) findViewById(R.id.toggleMapType);
         mNobodyPlayingText = (TextView) findViewById(R.id.nobody_is_playing);
         mRefreshingText = (TextView) findViewById(R.id.refreshing_data);
@@ -144,10 +91,24 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 mMap.setMapType(newType);
             }
         });
-
+        mRegions = new Regions(this);
+        showRegions();
         mMap.setOnMarkerClickListener(this);
         mMap.setOnMapClickListener(this);
         checkUpdate();
+    }
+
+    private void showRegions() {
+        for (Regions.Region region : mRegions.getRegions()) {
+            mMap.addPolygon(new PolygonOptions()
+                .add(region.getTopLeft())
+                .add(region.getTopRight())
+                .add(region.getBottomRight())
+                .add(region.getBottomLeft())
+                .strokeColor(0xFF555555)
+                .strokeWidth(4)
+            );
+        }
     }
 
 
@@ -239,7 +200,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
         LatLngBounds boundaries = mMap.getProjection().getVisibleRegion().latLngBounds;
 
-        for (Map.Entry<String, Flight> flightEntry : mFleet.getFleet().entrySet()) {
+        for (Map.Entry<Users.User, Flight> flightEntry : mFleet.getFleet().entrySet()) {
             Flight flight = flightEntry.getValue();
 
             // Using this loop to locate the selected flight
@@ -413,7 +374,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private Flight flightForMarker(Marker marker) {
         if (marker == null)
             return null;
-            for (Map.Entry<String, Flight> flightEntry : mFleet.getFleet().entrySet()) {
+            for (Map.Entry<Users.User, Flight> flightEntry : mFleet.getFleet().entrySet()) {
                 if (marker.equals(flightEntry.getValue().getMarker())) {
                     return flightEntry.getValue();
                 }
@@ -536,8 +497,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
     private void showInfoPane(Flight flight) {
         LongSparseArray<Flight.FlightData> history = flight.getFlightHistory();
-        Flight.FlightData lastData = history.valueAt(history.size() - 1);
-        mInfoPane.show(flight.getCallSign(), flight.getAircraftName(), lastData.speed.longValue(), lastData.altitude.longValue(), lastData.getAgeMs() / 1000);
+        mInfoPane.show(flight);
     }
 
     private void showInfoPane(Marker marker) {

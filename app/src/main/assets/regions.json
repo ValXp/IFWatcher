@@ -1,0 +1,107 @@
+[
+ {
+ "LonMin":-123.0,
+ "LatMin":37.0,
+ "LonMax":-121.0,
+ "LatMax":38.0,
+ "Name" : "San Francisco"
+
+},
+ {
+ "LonMin":149,
+ "LatMin":-36,
+ "LonMax":152,
+ "LatMax":-33,
+ "Name" : "Sydney"
+
+},
+ {
+ "LonMin":-119,
+ "LatMin":32,
+ "LonMax":-116,
+ "LatMax":35,
+ "Name" : "Socal"
+
+},
+ {
+ "LonMin":-89,
+ "LatMin":43,
+ "LonMax":-87,
+ "LatMax":45,
+ "Name" : "Oshkosh"
+
+},
+ {
+ "LonMin":-2,
+ "LatMin":50,
+ "LonMax":1,
+ "LatMax":53,
+ "Name" : "London"
+
+},
+ {
+ "LonMin":-75,
+ "LatMin":40,
+ "LonMax":-73,
+ "LatMax":42,
+ "Name" : "NewYork"
+
+},
+ {
+ "LonMin":-82,
+ "LatMin":33,
+ "LonMax":-79,
+ "LatMax":36,
+ "Name" : "Charlotte"
+
+},
+ {
+ "LonMin":-83,
+ "LatMin":25,
+ "LonMax":-80,
+ "LatMax":28,
+ "Name" : "SouthFlorida"
+
+},
+ {
+ "LonMin":1,
+ "LatMin":47,
+ "LonMax":4,
+ "LatMax":50,
+ "Name" : "Paris"
+
+},
+ {
+ "LonMin":-64,
+ "LatMin":16,
+ "LonMax":-61,
+ "LatMax":19,
+ "Name" : "Caribbean"
+
+},
+ {
+ "LonMin":-91,
+ "LatMin":40,
+ "LonMax":-87,
+ "LatMax":43,
+ "Name" : "Chicago"
+
+},
+ {
+ "LonMin":-108,
+ "LatMin":38,
+ "LonMax":-104,
+ "LatMax":40,
+ "Name" : "Denver"
+
+},
+ {
+ "LonMin":4,
+ "LatMin":50,
+ "LonMax":8,
+ "LatMax":53,
+ "Name" : "Amsterdam"
+
+}
+]
+
