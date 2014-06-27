@@ -169,7 +169,7 @@ public class InfoPane extends LinearLayout {
             mRightTexts.get(UserIds.Rank).setText("Rank: " + user.getRank().toString());
             mRightTexts.get(UserIds.Standing).setText("Standing: " + user.getStanding() * 100 + "%");
             mRightTexts.get(UserIds.XP).setText("XP: " + user.getSkills());
-            mRightTexts.get(UserIds.FlightTime).setText("Flight Time: " + (int)Math.floor(user.getFlightTime()) + "h");
+            mRightTexts.get(UserIds.FlightTime).setText("Total Flight Time: " + (int)Math.floor(user.getFlightTime() / 60) + "h");
             mRightTexts.get(UserIds.LandingCount).setText("Landings: " + user.getLandingCount());
             mRightTexts.get(UserIds.Violations).setText("Violations: " + user.getViolations());
             mRightTexts.get(UserIds.OnlineFlights).setText("Online Flights : " + user.getOnlineFlights());
