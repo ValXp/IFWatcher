@@ -1,7 +1,5 @@
 package com.valxp.app.infiniteflightwatcher.model;
 
-import android.util.JsonReader;
-import android.util.JsonToken;
 import android.util.Log;
 import android.support.v4.util.LongSparseArray;
 
@@ -9,14 +7,12 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.Polyline;
 import com.valxp.app.infiniteflightwatcher.APIConstants;
+import com.valxp.app.infiniteflightwatcher.Webservices;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLConnection;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.Date;
 import java.util.List;
 
@@ -30,6 +26,7 @@ public class Flight {
     private String mFlightID;
     private String mUserID;
     private Long mLastReportUTC;
+    private Users.User mUser;
 
     private LongSparseArray<FlightData> mFlightHistory;
     private Marker mMarker;
@@ -37,35 +34,18 @@ public class Flight {
     private Polyline mAproxTrail;
     private boolean mNeedsUpdate = false;
 
-    public Flight(JsonReader reader) throws IOException {
-        reader.beginObject();
+    public Flight(Users users, JSONObject object) throws JSONException {
         mFlightHistory = new LongSparseArray<FlightData>();
-        FlightData data = new FlightData();
-        while (reader.hasNext()) {
-            String name = reader.nextName();
-            // Ignore null values
-            if (reader.peek() == JsonToken.NULL) {
-                reader.skipValue();
-                continue;
-            }
-            if (name.equals("AircraftName"))
-                mAircraftName = reader.nextString();
-            else if (name.equals("CallSign"))
-                mCallSign = reader.nextString();
-            else if (name.equals("DisplayName"))
-                mDisplayName = reader.nextString();
-            else if (name.equals("FlightID"))
-                mFlightID = reader.nextString();
-            else if (name.equals("UserID"))
-                mUserID = reader.nextString();
-            else if (!data.parseJson(name, reader)){
-                Log.w("FlightParsing", "Skipping value " + name);
-                reader.skipValue();
-            }
-        }
+        FlightData data = new FlightData(object);
+        mAircraftName = object.getString("AircraftName");
+        mCallSign = object.getString("CallSign");
+        mDisplayName = object.getString("DisplayName");
+        mFlightID = object.getString("FlightID");
+        mUserID = object.getString("UserID");
+
         mLastReportUTC = data.reportTimestampUTC;
         mFlightHistory.append(data.reportTimestampUTC, data);
-        reader.endObject();
+        mUser = users.addUser(mUserID);
         //Log.d("FlightPArsing", this.toString());
     }
 
@@ -78,64 +58,23 @@ public class Flight {
         }
     }
 
-    private InputStream fetchFLightDetailsJson() {
-        URL url = null;
-        try {
-            url = new URL(APIConstants.APICalls.FLIGHT_DETAILS.toString());
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
-        try {
-            URLConnection connection = url.openConnection();
-            connection.setDoOutput(true);
-            connection.setDoInput(true);
-
-            OutputStreamWriter writer = new OutputStreamWriter(connection.getOutputStream());
-            writer.write("{\"FlightID\":\"" + mFlightID + "\"}");
-            writer.flush();
-
-            return connection.getInputStream();
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
-
 
     // Retrieves the full flight from the server
     public void pullFullFlight() {
         Log.d("Flight", "Pulling full flight...");
-        int count = 0;
-        JsonReader reader = new JsonReader(new InputStreamReader(fetchFLightDetailsJson()));
+        JSONArray array = Webservices.getJSON(APIConstants.APICalls.FLIGHT_DETAILS, "{\"FlightID\":\"" + mFlightID + "\"}");
         synchronized (this) {
-            try {
-                // The root is an array of flights
-                reader.beginArray();
-                // Now looping through each flight data
-                while (reader.hasNext()) {
-                    reader.beginObject();
-                    FlightData data = new FlightData();
-                    while (reader.hasNext()) {
-                        String name = reader.nextName();
-                        // Ignore null values
-                        if (reader.peek() == JsonToken.NULL) {
-                            reader.skipValue();
-                            continue;
-                        }
-                        if (!data.parseJson(name, reader)) {
-                            Log.w("FlightDetailsParsing", "Skipping value " + name);
-                            reader.skipValue();
-                        }
-                    }
-                    ++count;
+            for (int i = 0; i < array.length(); ++i) {
+
+                FlightData data = null;
+                try {
+                    data = new FlightData(array.getJSONObject(i));
                     mFlightHistory.append(data.reportTimestampUTC, data);
-                    reader.endObject();
+                } catch (JSONException e) {
+                    e.printStackTrace();
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
             }
         }
-        Log.d("Flight", "Pulled " + count + " flight points");
     }
 
     public String getAircraftName() {
@@ -198,6 +137,10 @@ public class Flight {
         mNeedsUpdate = isNew;
     }
 
+    public Users.User getUser() {
+        return mUser;
+    }
+
     public long getAgeMs() {
         if (mFlightHistory.size() > 0) {
             return mFlightHistory.valueAt(mFlightHistory.size() - 1).getAgeMs();
@@ -232,28 +175,14 @@ public class Flight {
             return reportTimestampUTC < other.reportTimestampUTC;
         }
 
-        public boolean parseJson(String name, JsonReader reader) throws IOException {
-            if (name.equals("Latitude"))
-                lat = reader.nextDouble();
-            else if (name.equals("Longitude"))
-                lng = reader.nextDouble();
-            else if (name.equals("Speed"))
-                speed = reader.nextDouble();
-            else if (name.equals("Track"))
-                bearing = reader.nextDouble();
-            else if (name.equals("Altitude"))
-                altitude = reader.nextDouble();
-            else if (name.equals("LastReportUTC") || name.equals("Time")) {
-                reportTimestampUTC = ((reader.nextLong() / 10000000) - 11644473600l) * 1000; // Windows file time to unix time in MS
-            } else {
-                return false;
-            }
-            if (lat != null && lng != null) {
-                position = new LatLng(lat, lng);
-                lat = null;
-                lng = null;
-            }
-            return true;
+        public FlightData(JSONObject object) throws JSONException {
+            position = new LatLng(object.getDouble("Latitude"), object.getDouble("Longitude"));
+            speed = object.getDouble("Speed");
+            bearing = object.getDouble("Track");
+            altitude = object.getDouble("Altitude");
+            reportTimestampUTC = object.optLong("LastReportUTC", object.optLong("Time", 0));
+            reportTimestampUTC = ((reportTimestampUTC / 10000000) - 11644473600l) * 1000; // Windows file time to unix time in MS
+
         }
 
         public long getAgeMs() {
