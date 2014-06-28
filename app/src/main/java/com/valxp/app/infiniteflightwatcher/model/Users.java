@@ -58,6 +58,8 @@ public class Users {
 
 
     private void parseJson(JSONArray array) throws JSONException {
+        if (array == null)
+            return;
         for (int i = 0; i < array.length(); ++i) {
             User temp = new User(array.getJSONObject(i));
             User user = mUsers.get(temp.mId);

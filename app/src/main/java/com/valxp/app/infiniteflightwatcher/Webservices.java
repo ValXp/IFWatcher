@@ -24,6 +24,8 @@ public class Webservices {
 
     public static JSONArray getJSON(APIConstants.APICalls call, String data) {
         InputStream stream = fetchJson(call, data);
+        if (stream == null)
+            return null;
         BufferedReader streamReader = null;
         try {
             streamReader = new BufferedReader(new InputStreamReader(stream, "UTF-8"));
