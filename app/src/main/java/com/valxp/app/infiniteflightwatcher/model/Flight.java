@@ -63,6 +63,8 @@ public class Flight {
     public void pullFullFlight() {
         Log.d("Flight", "Pulling full flight...");
         JSONArray array = Webservices.getJSON(APIConstants.APICalls.FLIGHT_DETAILS, "{\"FlightID\":\"" + mFlightID + "\"}");
+        if (array == null)
+            return;
         synchronized (this) {
             for (int i = 0; i < array.length(); ++i) {
 

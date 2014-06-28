@@ -167,7 +167,7 @@ public class InfoPane extends LinearLayout {
         if (user.isSet()) {
             mRightTexts.get(UserIds.Name).setText(flight.getDisplayName());
             mRightTexts.get(UserIds.Rank).setText("Rank: " + user.getRank().toString());
-            mRightTexts.get(UserIds.Standing).setText("Standing: " + user.getStanding() * 100 + "%");
+            mRightTexts.get(UserIds.Standing).setText("Standing: " + Math.round(user.getStanding() * 100)+ "%");
             mRightTexts.get(UserIds.XP).setText("XP: " + user.getSkills());
             mRightTexts.get(UserIds.FlightTime).setText("Total Flight Time: " + (int)Math.floor(user.getFlightTime() / 60) + "h");
             mRightTexts.get(UserIds.LandingCount).setText("Landings: " + user.getLandingCount());
