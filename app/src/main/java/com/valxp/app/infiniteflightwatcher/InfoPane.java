@@ -39,6 +39,7 @@ public class InfoPane extends LinearLayout {
       Plane,
       Speed,
       Altitude,
+      FlightDuration,
       LastReport
     };
 
@@ -161,6 +162,7 @@ public class InfoPane extends LinearLayout {
         } else {
             lastUpdate = "Right now";
         }
+        mLeftTexts.get(FlightIds.FlightDuration).setText("Flight duration: " + (history.valueAt(0).getAgeMs() / 60000) + "m");
         mLeftTexts.get(FlightIds.LastReport).setText(lastUpdate);
 
         Users.User user = flight.getUser();
