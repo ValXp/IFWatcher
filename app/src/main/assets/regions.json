@@ -101,7 +101,13 @@
  "LonMax":8,
  "LatMax":53,
  "Name" : "Amsterdam"
-
+},
+{
+ "LonMin":-125,
+ "LatMin":45,
+ "LonMax":-121,
+ "LatMax":48,
+ "Name" : "Seattle"
 }
 ]
 
