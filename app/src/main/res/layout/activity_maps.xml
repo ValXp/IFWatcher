@@ -54,30 +54,60 @@
             android:id="@+id/info_pane"
             android:visibility="gone"
             android:layout_width="wrap_content"
-            android:background="@drawable/shadowed_ui_background"
-            android:orientation="horizontal"
             android:layout_gravity="bottom|left"
             android:layout_margin="5dp"
-            android:animateLayoutChanges="true"
             android:layout_height="wrap_content">
             <LinearLayout
-                android:id="@+id/right_pane"
+                android:id="@+id/image_layout"
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentTop="true"
                 android:orientation="vertical"
-                android:padding="3dp"
+                android:background="@drawable/shadowed_ui_background"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content">
-
-            </LinearLayout>
-            <View
-                style="@style/vertical_separator"
+                <ImageView
+                    android:id="@+id/plane_image"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@drawable/image_boeing_717_200"
                 />
+                <TextView
+                    android:id="@+id/tap_to_see_more"
+                    android:textColor="@android:color/black"
+                    android:layout_width="wrap_content"
+                    android:textSize="10sp"
+                    android:layout_height="wrap_content"
+                    android:text="@string/tap_to_see_more_text"/>
+            </LinearLayout>
             <LinearLayout
-                android:id="@+id/left_pane"
-                android:orientation="vertical"
-                android:padding="3dp"
+                android:background="@drawable/shadowed_ui_background"
+                android:orientation="horizontal"
+                android:layout_below="@+id/image_layout"
+                android:layout_alignParentLeft="true"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content">
-
+                <LinearLayout
+                    android:id="@+id/left_pane"
+                    android:orientation="vertical"
+                    android:animateLayoutChanges="true"
+                    android:padding="3dp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content">
+                </LinearLayout>
+                <View
+                    android:id="@+id/central_separator"
+                    style="@style/vertical_separator"
+                    android:animateLayoutChanges="true"
+                    android:layout_height="match_parent"
+                    />
+                <LinearLayout
+                    android:id="@+id/right_pane"
+                    android:orientation="vertical"
+                    android:padding="3dp"
+                    android:animateLayoutChanges="true"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content">
+                </LinearLayout>
             </LinearLayout>
 
         </com.valxp.app.infiniteflightwatcher.InfoPane>

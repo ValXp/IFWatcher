@@ -6,20 +6,22 @@ import android.support.v4.util.LongSparseArray;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.Polyline;
+import com.google.maps.android.SphericalUtil;
 import com.valxp.app.infiniteflightwatcher.APIConstants;
+import com.valxp.app.infiniteflightwatcher.TimeProvider;
 import com.valxp.app.infiniteflightwatcher.Webservices;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.Date;
 import java.util.List;
 
 /**
  * Created by ValXp on 5/20/14.
  */
 public class Flight {
+    public static double METERS_TO_NAUTICAL_MILES = 0.000539957;
     private String mAircraftName;
     private String mCallSign;
     private String mDisplayName;
@@ -150,6 +152,28 @@ public class Flight {
             return 0;
     }
 
+    // Cumulative distance for the whole flight
+    public double getFlightAbsoluteDistance() {
+        if (mFlightHistory == null || mFlightHistory.size() < 2)
+            return 0;
+        double length = 0;
+        FlightData data = mFlightHistory.valueAt(0);
+        for (int i = 1; i < mFlightHistory.size(); ++i) {
+            FlightData nextData = mFlightHistory.valueAt(i);
+            length += SphericalUtil.computeDistanceBetween(data.position, nextData.position);
+
+            data = nextData;
+        }
+        return length * METERS_TO_NAUTICAL_MILES;
+    }
+
+    // Distance between start and end point
+    public double getEndToEndDistance() {
+        if (mFlightHistory == null || mFlightHistory.size() < 2)
+            return 0;
+        return SphericalUtil.computeDistanceBetween(mFlightHistory.valueAt(0).position, mFlightHistory.valueAt(mFlightHistory.size() - 1).position) * METERS_TO_NAUTICAL_MILES;
+    }
+
     @Override
     public String toString() {
         return "Flight{" +
@@ -169,9 +193,7 @@ public class Flight {
         public Double bearing;
         public Long reportTimestampUTC;
         public Double altitude;
-
-        private Double lat = null;
-        private Double lng = null;
+        public Double verticalSpeed;
 
         public boolean isOlderThan(FlightData other) {
             return reportTimestampUTC < other.reportTimestampUTC;
@@ -184,11 +206,11 @@ public class Flight {
             altitude = object.getDouble("Altitude");
             reportTimestampUTC = object.optLong("LastReportUTC", object.optLong("Time", 0));
             reportTimestampUTC = ((reportTimestampUTC / 10000000) - 11644473600l) * 1000; // Windows file time to unix time in MS
-
+            verticalSpeed = object.getDouble("VerticalSpeed");
         }
 
         public long getAgeMs() {
-            return new Date().getTime() - reportTimestampUTC;
+            return TimeProvider.getTime() - reportTimestampUTC;
         }
 
         @Override
