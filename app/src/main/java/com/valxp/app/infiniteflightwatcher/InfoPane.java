@@ -10,7 +10,9 @@ import android.view.animation.AlphaAnimation;
 import android.view.animation.AnimationSet;
 import android.view.animation.DecelerateInterpolator;
 import android.view.animation.TranslateAnimation;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.valxp.app.infiniteflightwatcher.model.Flight;
@@ -23,24 +25,46 @@ import java.util.Map;
 /**
  * Created by ValXp on 6/25/14.
  */
-public class InfoPane extends LinearLayout {
+public class InfoPane extends RelativeLayout implements View.OnClickListener {
 
     private Context mContext;
 
-    private LinearLayout mLeftPane;
     private LinearLayout mRightPane;
+    private LinearLayout mLeftPane;
 
-    private Map<FlightIds, TextView> mLeftTexts;
-    private HashMap<UserIds, TextView> mRightTexts;
+    private ImageView mPlaneImage;
+    private TextView mTapToSeeMore;
 
+    private Map<FlightIds, TextView> mRightTexts;
+    private HashMap<UserIds, TextView> mLeftTexts;
+
+    private boolean mIsFullyDisplayed = false;
+
+    @Override
+    public void onClick(View view) {
+        mIsFullyDisplayed = !mIsFullyDisplayed;
+        updateFullVisibility();
+    }
+
+    private void updateFullVisibility() {
+        for (int i = 0; i < mLeftPane.getChildCount(); ++i) {
+            mLeftPane.getChildAt(i).setVisibility(i > 2 && !mIsFullyDisplayed ? GONE : VISIBLE);
+        }
+        for (int i = 0; i < mRightPane.getChildCount(); ++i) {
+            mRightPane.getChildAt(i).setVisibility(i > 2 && !mIsFullyDisplayed ? GONE : VISIBLE);
+        }
+        mTapToSeeMore.setVisibility(mIsFullyDisplayed ? GONE : VISIBLE);
+    }
 
     public enum FlightIds{
-      CallSign,
-      Plane,
-      Speed,
-      Altitude,
-      FlightDuration,
-      LastReport
+        CallSign,
+        Plane,
+        Speed,
+        Altitude,
+        FlightDuration,
+        TotalDistance,
+        EndToEndDistance,
+        LastReport
     };
 
     public enum UserIds {
@@ -77,11 +101,20 @@ public class InfoPane extends LinearLayout {
 
     private void init() {
 
-        mLeftPane = (LinearLayout) findViewById(R.id.left_pane);
-        mRightPane = (LinearLayout) findViewById(R.id.right_pane);
 
-        mLeftTexts = new HashMap<FlightIds, TextView>();
-        mRightTexts = new HashMap<UserIds, TextView>();
+        mRightPane = (LinearLayout) findViewById(R.id.right_pane);
+        mLeftPane = (LinearLayout) findViewById(R.id.left_pane);
+
+        mPlaneImage = (ImageView) findViewById(R.id.plane_image);
+        mTapToSeeMore = (TextView) findViewById(R.id.tap_to_see_more);
+
+        mRightPane.setOnClickListener(this);
+        mLeftPane.setOnClickListener(this);
+        mPlaneImage.setOnClickListener(this);
+        mTapToSeeMore.setOnClickListener(this);
+
+        mRightTexts = new HashMap<FlightIds, TextView>();
+        mLeftTexts = new HashMap<UserIds, TextView>();
 
 
         int i = 0;
@@ -102,9 +135,10 @@ public class InfoPane extends LinearLayout {
         return text;
     }
 
-    private View newSeparator() {
+    private View newSeparator(Object tag) {
         View sep = new View(mContext);
 
+        sep.setTag(tag);
         sep.setLayoutParams(new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 2));
         sep.setBackgroundColor(0xFF000000);
         return sep;
@@ -112,24 +146,46 @@ public class InfoPane extends LinearLayout {
 
     private void addText(UserIds id, boolean appendSeparator) {
         TextView text = newText();
-        mRightPane.addView(text);
-        mRightTexts.put(id, text);
+        mLeftPane.addView(text);
+        mLeftTexts.put(id, text);
         if (appendSeparator)
-            mRightPane.addView(newSeparator());
+            mLeftPane.addView(newSeparator(text));
     }
 
     private void addText(FlightIds id, boolean appendSeparator) {
         TextView text = newText();
-        mLeftPane.addView(text);
-        mLeftTexts.put(id, text);
+        mRightPane.addView(text);
+        mRightTexts.put(id, text);
         if (appendSeparator)
-            mLeftPane.addView(newSeparator());
+            mRightPane.addView(newSeparator(text));
     }
 
+    private void updatePlaneImage(Flight flight) {
+        String plane = flight.getAircraftName();
+        plane = plane.replace(" ", "_").replace("-", "_").replace("/", "_").toLowerCase();
+        plane = "image_" + plane;
+
+        Field[] fields = R.drawable.class.getDeclaredFields();
+        for (Field field : fields) {
+            if (field.getName().equals(plane)) {
+                try {
+                    mPlaneImage.setImageResource(field.getInt(R.drawable.class));
+                    mPlaneImage.setVisibility(View.VISIBLE);
+                    return;
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        mPlaneImage.setVisibility(View.GONE);
+    }
 
     public void show(Flight flight) {
-        if (getVisibility() != View.VISIBLE) {
-            setVisibility(View.VISIBLE);
+
+        updateFullVisibility();
+
+        if (getVisibility() != VISIBLE) {
+            setVisibility(VISIBLE);
             TranslateAnimation trans = new TranslateAnimation(-600, 0, 0, 0);
             trans.setInterpolator(new DecelerateInterpolator());
             trans.setDuration(500);
@@ -145,13 +201,16 @@ public class InfoPane extends LinearLayout {
         }
 
 
+        updatePlaneImage(flight);
 
         LongSparseArray<Flight.FlightData> history =  flight.getFlightHistory();
         Flight.FlightData lastData = history.valueAt(history.size() - 1);
-        mLeftTexts.get(FlightIds.CallSign).setText(flight.getCallSign());
-        mLeftTexts.get(FlightIds.Plane).setText(flight.getAircraftName());
-        mLeftTexts.get(FlightIds.Speed).setText(Math.round(lastData.speed) + " kts");
-        mLeftTexts.get(FlightIds.Altitude).setText(Math.round(lastData.altitude) + " feet");
+        int fpm = (int)Math.round(lastData.verticalSpeed);
+        String sign = fpm > 0 ? "+":"";
+        mRightTexts.get(FlightIds.CallSign).setText(flight.getCallSign());
+        mRightTexts.get(FlightIds.Plane).setText(flight.getAircraftName());
+        mRightTexts.get(FlightIds.Speed).setText(Math.round(lastData.speed) + " kts");
+        mRightTexts.get(FlightIds.Altitude).setText(Math.round(lastData.altitude) + " feet (" + sign + fpm + " fpm)");
         String lastUpdate = "";
         Long lastUpdateSeconds = lastData.getAgeMs() / 1000;
         if (lastUpdateSeconds > 0) {
@@ -162,19 +221,21 @@ public class InfoPane extends LinearLayout {
         } else {
             lastUpdate = "Right now";
         }
-        mLeftTexts.get(FlightIds.FlightDuration).setText("Flight duration: " + (history.valueAt(0).getAgeMs() / 60000) + "m");
-        mLeftTexts.get(FlightIds.LastReport).setText(lastUpdate);
+        mRightTexts.get(FlightIds.FlightDuration).setText("Flight duration: " + (history.valueAt(0).getAgeMs() / 60000) + "m");
+        mRightTexts.get(FlightIds.TotalDistance).setText("Flight distance : " + (int)flight.getFlightAbsoluteDistance() + "NM");
+        mRightTexts.get(FlightIds.EndToEndDistance).setText("End to end : " + (int)flight.getEndToEndDistance() + "NM");
+        mRightTexts.get(FlightIds.LastReport).setText(lastUpdate);
 
         Users.User user = flight.getUser();
         if (user.isSet()) {
-            mRightTexts.get(UserIds.Name).setText(flight.getDisplayName());
-            mRightTexts.get(UserIds.Rank).setText("Rank: " + user.getRank().toString());
-            mRightTexts.get(UserIds.Standing).setText("Standing: " + Math.round(user.getStanding() * 100)+ "%");
-            mRightTexts.get(UserIds.XP).setText("XP: " + user.getSkills());
-            mRightTexts.get(UserIds.FlightTime).setText("Total Flight Time: " + (int)Math.floor(user.getFlightTime() / 60) + "h");
-            mRightTexts.get(UserIds.LandingCount).setText("Landings: " + user.getLandingCount());
-            mRightTexts.get(UserIds.Violations).setText("Violations: " + user.getViolations());
-            mRightTexts.get(UserIds.OnlineFlights).setText("Online Flights : " + user.getOnlineFlights());
+            mLeftTexts.get(UserIds.Name).setText(flight.getDisplayName());
+            mLeftTexts.get(UserIds.Rank).setText("Rank: " + user.getRank().toString());
+            mLeftTexts.get(UserIds.Standing).setText("Standing: " + Math.round(user.getStanding() * 100)+ "%");
+            mLeftTexts.get(UserIds.XP).setText("XP: " + user.getSkills());
+            mLeftTexts.get(UserIds.FlightTime).setText((int)Math.floor(user.getFlightTime() / 60) + " flight hours");
+            mLeftTexts.get(UserIds.LandingCount).setText("Landings: " + user.getLandingCount());
+            mLeftTexts.get(UserIds.Violations).setText("Violations: " + user.getViolations());
+            mLeftTexts.get(UserIds.OnlineFlights).setText("Online Flights : " + user.getOnlineFlights());
         }
 
     }

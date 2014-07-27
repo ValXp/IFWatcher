@@ -40,7 +40,6 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -53,10 +52,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private static final int REFRESH_UI_MS = 1000 / 15;
     private static final int REFRESH_API_MS = 8 * 1000;
     private static final int REFRESH_INFO_MS = 2 * 1000;
-    //private static final int TRAIL_LENGTH = 50;
     private static final double KTS_TO_M_PER_S = .52;
     private static final double MAX_ALTITUDE = 50000; // Max altitude in ft
-    private static final float TRAIL_THICKNESS = 5.0f;
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private UpdateThread mUpdateThread;
@@ -115,6 +112,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     @Override
     protected void onResume() {
         super.onResume();
+        TimeProvider.synchronizeWithInternet();
         setUpMapIfNeeded();
         if (mUpdateThread != null && mUpdateThread.isAlive())
             mUpdateThread.requestStop();
@@ -192,7 +190,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         Flight selectedFlight = null;
         mNobodyPlayingText.setVisibility((mFleet.getActiveFleetSize() <= 0 && mFleet.isUpToDate()) ? View.VISIBLE : View.GONE);
         boolean updateInfo = false;
-        long now = new Date().getTime();
+        long now = TimeProvider.getTime();
         if (now - mLastTimeInfoUpdated > REFRESH_INFO_MS) {
             mLastTimeInfoUpdated = now;
             updateInfo = true;
@@ -238,7 +236,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                     // Stop interpolating if data is too old
                     long delta = Math.min(now - data.reportTimestampUTC, MAX_INTERPOLATE_DURATION_MS);
                     // Disable interpolation if going below 40kts (probably taxiing)
-                    if (data.speed < MINIMUM_INTERPOLATION_SPEED_KTS) {
+                    if (data.speed < MINIMUM_INTERPOLATION_SPEED_KTS || delta <= 0) {
                         delta = 0;
                         Polyline line = flight.getAproxTrail();
                         if (line != null) {
@@ -488,7 +486,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
     private void requestPathUpdate(Flight flight) {
         flight.setNeedsUpdate(true);
-        mUpdateThread.requestWake();
+        if (mUpdateThread != null)
+            mUpdateThread.requestWake();
     }
 
     private void hideInfoPane() {
