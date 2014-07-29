@@ -1,7 +1,5 @@
 # Created by http://www.gitignore.io
 
-#!! ERROR: androi is undefined. Use list command to see defined gitignore types !!#
-
 ### Android ###
 # Built application files
 *.apk
@@ -114,6 +112,6 @@ hs_err_pid*
 /local.properties
 /.idea/workspace.xml
 .DS_Store
-#localSigning.properties
-#app/src/main/java/com/valxp/app/infiniteflightwatcher/APIConstants.java
+localSigning.properties
+app/src/main/java/com/valxp/app/infiniteflightwatcher/APIConstants.java
 
