@@ -1,5 +1,8 @@
 # Created by http://www.gitignore.io
 
+localSigning.properties
+app/src/main/java/com/valxp/app/infiniteflightwatcher/APIConstants.java
+
 ### Android ###
 # Built application files
 *.apk
@@ -112,6 +115,4 @@ hs_err_pid*
 /local.properties
 /.idea/workspace.xml
 .DS_Store
-#localSigning.properties
-#app/src/main/java/com/valxp/app/infiniteflightwatcher/APIConstants.java
 
