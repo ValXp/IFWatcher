@@ -53,7 +53,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private static final int REFRESH_API_MS = 8 * 1000;
     private static final int REFRESH_INFO_MS = 2 * 1000;
     private static final double KTS_TO_M_PER_S = .52;
-    private static final double MAX_ALTITUDE = 50000; // Max altitude in ft
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private UpdateThread mUpdateThread;
@@ -156,36 +155,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         }
     }
 
-    private int valueToColor(double value) {
-         value = Math.max(0, Math.min(1, value));
-         int alpha = 0xFF;
-         int red = 0;
-         int green = 0;
-         int blue = 0;
-         double step = 1 / 5.0;
-
-         if (value <= step * 1) { // blue 100%. Green increasing
-             double inRatio = value / step;
-             blue = 0xff;
-             green = (int) (0xff * inRatio);
-         } else if (value <= step * 2) { // Green 100%. blue decreasing
-             double inRatio = (value - (1 * step)) / step;
-             green = 0xff;
-             blue = (int) (0xff * (1 - inRatio));
-         } else if (value <= step * 3) { //Green 100%. red increasing
-             double inRatio = (value - (2 * step)) / step;
-             green = 0xff;
-             red = (int) (0xff * inRatio);
-         } else if (value <= step * 4) { // Red 100%. green decreasing
-             double inRatio = (value - (3 * step)) / step;
-             red = 0xff;
-             green = (int) (0xff * (1 - inRatio));
-         } else {
-             red = 0xff;
-         }
-         return blue | (green << 8) | (red << 16) | (alpha << 24);
-     }
-
     private void updateMap() {
         Flight selectedFlight = null;
         mNobodyPlayingText.setVisibility((mFleet.getActiveFleetSize() <= 0 && mFleet.isUpToDate()) ? View.VISIBLE : View.GONE);
@@ -217,7 +186,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                     && (lastMarker == null || !boundaries.contains(lastMarker.getPosition()))) {
                     if (lastMarker != null)
                         lastMarker.remove();
-                    Polyline line = flight.getAproxTrail();
+                    StrokedPolyLine line = flight.getAproxTrail();
                     if (line != null)
                         line.remove();
                     flight.setAproxTrail(null);
@@ -238,7 +207,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                     // Disable interpolation if going below 40kts (probably taxiing)
                     if (data.speed < MINIMUM_INTERPOLATION_SPEED_KTS || delta <= 0) {
                         delta = 0;
-                        Polyline line = flight.getAproxTrail();
+                        StrokedPolyLine line = flight.getAproxTrail();
                         if (line != null) {
                             line.remove();
                         }
@@ -276,12 +245,12 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 }
                 long delta = Math.min(now - data.reportTimestampUTC, MAX_INTERPOLATE_DURATION_MS);
                 if (delta > REFRESH_UI_MS) {
-                    Polyline line = selectedFlight.getAproxTrail();
+                    StrokedPolyLine line = selectedFlight.getAproxTrail();
                     LatLng newPos = mLastVisibleMarker.getPosition();
                     if (line == null) {
-                        selectedFlight.setAproxTrail(coloredPolyline(data.speed, data.altitude, data.position, newPos));
+                        selectedFlight.setAproxTrail(new StrokedPolyLine(mMap, data.speed, data.altitude, data.position, newPos));
                     } else {
-                        updateLine(line, data.speed, data.altitude);
+                        line.update(data.speed, data.altitude);
                         List<LatLng> points = line.getPoints();
                         points.clear();
                         points.add(data.position);
@@ -388,7 +357,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 synchronized (oldFlight) {
                     removePath(oldFlight);
                 }
-                Polyline line = oldFlight.getAproxTrail();
+                StrokedPolyLine line = oldFlight.getAproxTrail();
                 if (line != null) {
                     line.remove();
                     oldFlight.setAproxTrail(null);
@@ -409,9 +378,9 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     }
 
     private void removePath(Flight flight) {
-            List<Polyline> lines = flight.getHistoryTrail();
+            List<StrokedPolyLine> lines = flight.getHistoryTrail();
             if (lines != null) {
-                for (Polyline line : lines) {
+                for (StrokedPolyLine line : lines) {
                     line.remove();
                 }
             }
@@ -419,9 +388,9 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     }
 
     private void updatePath(Flight flight) {
-            ArrayList<Polyline> trail = (ArrayList<Polyline>) flight.getHistoryTrail();
+            ArrayList<StrokedPolyLine> trail = (ArrayList<StrokedPolyLine>) flight.getHistoryTrail();
             if (trail == null)
-                trail = new ArrayList<Polyline>();
+                trail = new ArrayList<StrokedPolyLine>();
             LongSparseArray<Flight.FlightData> history = flight.getFlightHistory();
             if (history == null || history.size() < 2)
                 removePath(flight);
@@ -430,13 +399,13 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                     !history.valueAt(history.size() - 2).position.equals(trail.get(trail.size() - 1).getPoints().get(0)) ||
                     !history.valueAt(history.size() - 1).position.equals(trail.get(trail.size() - 1).getPoints().get(1))) {
                 for (int i = 0; i < history.size() - 1; ++i) {
-                    Polyline oldLine = null;
+                    StrokedPolyLine oldLine = null;
                     if (trail.size() > i)
                         oldLine = trail.get(i);
                     if (oldLine == null || !oldLine.getPoints().get(0).equals(history.valueAt(i).position) || !oldLine.getPoints().get(1).equals(history.valueAt(i+1).position)) {
                         if (oldLine != null)
                             oldLine.remove();
-                        Polyline line = polylineFromFlightData(history.valueAt(i), history.valueAt(i + 1));
+                        StrokedPolyLine line = new StrokedPolyLine(mMap, history.valueAt(i), history.valueAt(i + 1));
                         if (oldLine == null)
                             trail.add(line);
                         else
@@ -447,23 +416,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             flight.setHistoryTrail(trail);
     }
 
-    private void updateLine(Polyline line, double speed, double altitude) {
-        line.setColor(valueToColor(altitude / MAX_ALTITUDE));
-        line.setWidth(1.0f + (float)(speed / 100.0));
-    }
-
-    private Polyline coloredPolyline(double speed, double altitude, LatLng first, LatLng second) {
-        PolylineOptions path = new PolylineOptions();
-        path.width(1.0f + (float)(speed / 100.0));
-        path.color(valueToColor(altitude / MAX_ALTITUDE));
-        path.add(first);
-        path.add(second);
-        return mMap.addPolyline(path);
-    }
-
-    private Polyline polylineFromFlightData(Flight.FlightData first, Flight.FlightData second) {
-        return coloredPolyline(first.speed, first.altitude, first.position, second.position);
-    }
 
     @Override
     public boolean onMarkerClick(Marker marker) {

@@ -5,9 +5,9 @@ import android.support.v4.util.LongSparseArray;
 
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.Polyline;
 import com.google.maps.android.SphericalUtil;
 import com.valxp.app.infiniteflightwatcher.APIConstants;
+import com.valxp.app.infiniteflightwatcher.StrokedPolyLine;
 import com.valxp.app.infiniteflightwatcher.TimeProvider;
 import com.valxp.app.infiniteflightwatcher.Webservices;
 
@@ -32,8 +32,8 @@ public class Flight {
 
     private LongSparseArray<FlightData> mFlightHistory;
     private Marker mMarker;
-    private List<Polyline> mHistoryTrail;
-    private Polyline mAproxTrail;
+    private List<StrokedPolyLine> mHistoryTrail;
+    private StrokedPolyLine mAproxTrail;
     private boolean mNeedsUpdate = false;
 
     public Flight(Users users, JSONObject object) throws JSONException {
@@ -117,19 +117,19 @@ public class Flight {
         this.mMarker = mMarker;
     }
 
-    public List<Polyline> getHistoryTrail() {
+    public List<StrokedPolyLine> getHistoryTrail() {
         return mHistoryTrail;
     }
 
-    public void setHistoryTrail(List<Polyline> mPolyLine) {
+    public void setHistoryTrail(List<StrokedPolyLine> mPolyLine) {
         this.mHistoryTrail = mPolyLine;
     }
 
-    public Polyline getAproxTrail() {
+    public StrokedPolyLine getAproxTrail() {
         return mAproxTrail;
     }
 
-    public void setAproxTrail(Polyline mAproxTrail) {
+    public void setAproxTrail(StrokedPolyLine mAproxTrail) {
         this.mAproxTrail = mAproxTrail;
     }
 

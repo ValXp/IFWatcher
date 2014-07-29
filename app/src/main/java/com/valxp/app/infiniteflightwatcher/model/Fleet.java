@@ -6,6 +6,7 @@ import android.util.Log;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.Polyline;
 import com.valxp.app.infiniteflightwatcher.APIConstants;
+import com.valxp.app.infiniteflightwatcher.StrokedPolyLine;
 import com.valxp.app.infiniteflightwatcher.Webservices;
 
 import org.json.JSONArray;
@@ -118,7 +119,7 @@ public class Fleet {
     }
 
     synchronized private Runnable discardOldFlights(long thresholdInSeconds) {
-        final List<Polyline> linesToRemove = new ArrayList<Polyline>();
+        final List<StrokedPolyLine> linesToRemove = new ArrayList<StrokedPolyLine>();
         final List<Marker> markersToRemove = new ArrayList<Marker>();
 
         for (Iterator<Map.Entry<Users.User, Flight>> it = mFleet.entrySet().iterator(); it.hasNext(); ) {
@@ -137,7 +138,7 @@ public class Fleet {
         return new Runnable() {
             @Override
             public void run() {
-                for (Polyline line : linesToRemove)
+                for (StrokedPolyLine line : linesToRemove)
                     line.remove();
                 for (Marker mark : markersToRemove)
                     mark.remove();
@@ -145,14 +146,14 @@ public class Fleet {
         };
     }
 
-    private void removeFlight(Flight flight, List<Polyline> linesToRemove, List<Marker> markersToRemove) {
+    private void removeFlight(Flight flight, List<StrokedPolyLine> linesToRemove, List<Marker> markersToRemove) {
         Log.d("Fleet", "Removing old flight (" + (flight.getAgeMs() / 60000) + " minutes old): " + flight.toString());
         Marker mark = flight.getMarker();
-        List<Polyline> lines = flight.getHistoryTrail();
+        List<StrokedPolyLine> lines = flight.getHistoryTrail();
         if (lines != null) {
             linesToRemove.addAll(lines);
         }
-        Polyline aproxLine = flight.getAproxTrail();
+        StrokedPolyLine aproxLine = flight.getAproxTrail();
         if (aproxLine != null)
             linesToRemove.add(aproxLine);
         if (mark != null)
