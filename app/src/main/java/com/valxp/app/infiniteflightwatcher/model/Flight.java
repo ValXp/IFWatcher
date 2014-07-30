@@ -7,6 +7,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.maps.android.SphericalUtil;
 import com.valxp.app.infiniteflightwatcher.APIConstants;
+import com.valxp.app.infiniteflightwatcher.MapsActivity;
 import com.valxp.app.infiniteflightwatcher.StrokedPolyLine;
 import com.valxp.app.infiniteflightwatcher.TimeProvider;
 import com.valxp.app.infiniteflightwatcher.Webservices;
@@ -81,6 +82,17 @@ public class Flight {
         }
     }
 
+    public LatLng getAproxLocation() {
+        FlightData current = getCurrentData();
+        if (current == null)
+            return null;
+        long delta = Math.min(TimeProvider.getTime() - current.reportTimestampUTC, MapsActivity.MAX_INTERPOLATE_DURATION_MS);
+        if (current.speed < MapsActivity.MINIMUM_INTERPOLATION_SPEED_KTS || delta <= 0)
+            delta = 0;
+        double distanceMeter = (current.speed * MapsActivity.KTS_TO_M_PER_S) * (delta / 1000.0);
+        return SphericalUtil.computeOffset(current.position, distanceMeter, current.bearing);
+    }
+
     public String getAircraftName() {
         return mAircraftName;
     }
@@ -117,6 +129,12 @@ public class Flight {
         this.mMarker = mMarker;
     }
 
+    public void removeMarker() {
+        if (this.mMarker != null)
+            this.mMarker.remove();
+        this.mMarker = null;
+    }
+
     public List<StrokedPolyLine> getHistoryTrail() {
         return mHistoryTrail;
     }
@@ -125,12 +143,28 @@ public class Flight {
         this.mHistoryTrail = mPolyLine;
     }
 
+    public void removeHistoryTrail() {
+        if (this.mHistoryTrail != null) {
+            for (StrokedPolyLine pl : mHistoryTrail) {
+                pl.remove();
+            }
+        }
+        this.mHistoryTrail = null;
+    }
+
     public StrokedPolyLine getAproxTrail() {
         return mAproxTrail;
     }
 
     public void setAproxTrail(StrokedPolyLine mAproxTrail) {
         this.mAproxTrail = mAproxTrail;
+    }
+
+    public void removeAproxTrail() {
+        if (this.mAproxTrail != null) {
+            this.mAproxTrail.remove();
+        }
+        this.mAproxTrail = null;
     }
 
     public boolean getNeedsUpdate() {
@@ -143,6 +177,10 @@ public class Flight {
 
     public Users.User getUser() {
         return mUser;
+    }
+
+    public FlightData getCurrentData() {
+        return mFlightHistory.valueAt(mFlightHistory.size() - 1);
     }
 
     public long getAgeMs() {

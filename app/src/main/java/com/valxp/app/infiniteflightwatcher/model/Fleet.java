@@ -2,6 +2,7 @@ package com.valxp.app.infiniteflightwatcher.model;
 
 import android.util.JsonReader;
 import android.util.Log;
+import android.util.LongSparseArray;
 
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.Polyline;
@@ -54,7 +55,6 @@ public class Fleet {
         parseFlightList(Webservices.getJSON(APIConstants.APICalls.FLIGHTS));
 
         Runnable forUIThread = discardOldFlights(thresholdInSeconds);
-
 
         for (Map.Entry<Users.User, Flight> data : mFleet.entrySet()) {
             Flight value = data.getValue();

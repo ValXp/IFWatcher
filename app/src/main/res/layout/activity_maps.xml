@@ -80,6 +80,7 @@
                     android:text="@string/tap_to_see_more_text"/>
             </LinearLayout>
             <LinearLayout
+                android:id="@+id/inner_info_pane"
                 android:background="@drawable/shadowed_ui_background"
                 android:orientation="horizontal"
                 android:layout_below="@+id/image_layout"
@@ -87,9 +88,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content">
                 <LinearLayout
+                    android:minWidth="140dp"
                     android:id="@+id/left_pane"
                     android:orientation="vertical"
-                    android:animateLayoutChanges="true"
                     android:padding="3dp"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content">
@@ -97,14 +98,13 @@
                 <View
                     android:id="@+id/central_separator"
                     style="@style/vertical_separator"
-                    android:animateLayoutChanges="true"
                     android:layout_height="match_parent"
                     />
                 <LinearLayout
+                    android:minWidth="150dp"
                     android:id="@+id/right_pane"
                     android:orientation="vertical"
                     android:padding="3dp"
-                    android:animateLayoutChanges="true"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content">
                 </LinearLayout>

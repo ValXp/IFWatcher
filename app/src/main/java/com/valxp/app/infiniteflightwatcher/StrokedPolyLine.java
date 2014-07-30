@@ -4,8 +4,10 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.maps.android.SphericalUtil;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -28,9 +30,23 @@ public class StrokedPolyLine {
         return mStroke.getPoints();
     }
 
-    public void setPoints(List<LatLng> points) {
-        mStroke.setPoints(points);
-        mLine.setPoints(points);
+    public void setPoints(LatLng first, LatLng second) {
+        LatLng firstOffset = SphericalUtil.interpolate(first, second, .01);
+        LatLng secondOffset = SphericalUtil.interpolate(first, second, .99);
+        List<LatLng> list = mStroke.getPoints();
+        if (list == null)
+            list = new ArrayList<LatLng>();
+        list.clear();
+        list.add(first);
+        list.add(second);
+        mStroke.setPoints(list);
+        list = mLine.getPoints();
+        if (list == null)
+            list = new ArrayList<LatLng>();
+        list.clear();
+        list.add(firstOffset);
+        list.add(secondOffset);
+        mLine.setPoints(list);
     }
 
     public void remove() {
@@ -48,20 +64,18 @@ public class StrokedPolyLine {
 
     private void construct(GoogleMap map, double speed, double altitude, LatLng first, LatLng second) {
         PolylineOptions path = new PolylineOptions();
-        path.add(first);
-        path.add(second);
         path.zIndex(0);
+        path.geodesic(true);
 
         mStroke = map.addPolyline(path);
 
         path = new PolylineOptions();
-        path.add(first);
-        path.add(second);
         path.zIndex(1);
 
         mLine = map.addPolyline(path);
 
         update(speed, altitude);
+        setPoints(first, second);
     }
 
 
