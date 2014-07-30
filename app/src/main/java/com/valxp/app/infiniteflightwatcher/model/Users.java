@@ -77,7 +77,7 @@ public class Users {
     }
 
 
-    public class User {
+    public static class User {
         private String mId;
         private Double mFlightTime;
         private Long mLandingCount;
@@ -88,8 +88,38 @@ public class Users {
         private Long mSkills;
         private Double mStanding; // 0 -> 0% 1 -> 100%
         private Long mViolations;
+        private Role mRole;
 
         private boolean mIsSet;
+
+        public enum Role {
+            UNKNOWN(0, "Unknown"),
+            USER(1, "User"),
+            TESTER(4, "Tester"),
+            ADMIN(16, "Admin");
+
+            private final int mValue;
+            private final String mName;
+            Role(int value, String name) {
+                mValue = value;
+                mName = name;
+            }
+            public int getValue() {
+                return mValue;
+            }
+            public String toString() {
+                return mName;
+            }
+            public static Role fromValue(int value) {
+                Role[] roles = Role.class.getEnumConstants();
+                for (Role role : roles) {
+                    if (role.getValue() == value) {
+                        return role;
+                    }
+                }
+                return UNKNOWN;
+            }
+        }
 
         public User(String id) {
             mId = id;
@@ -108,6 +138,8 @@ public class Users {
             mStanding = object.getDouble("Standing");
             mId = object.getString("UserID");
             mViolations = object.getLong("Violations");
+            Integer role = object.getInt("Roles");
+            mRole = role == null ? Role.fromValue(0) : Role.fromValue(role.intValue());
 
             mIsSet = true;
         }
@@ -123,6 +155,7 @@ public class Users {
             this.mStanding = other.mStanding;
             this.mViolations = other.mViolations;
             this.mIsSet = true;
+            this.mRole = other.mRole;
         }
 
         public void markForUpdate() {
@@ -173,5 +206,8 @@ public class Users {
             return mLandingCount;
         }
 
+        public Role getRole() {
+            return mRole;
+        }
     }
 }

@@ -1,58 +1,43 @@
 package com.valxp.app.infiniteflightwatcher;
 
-import android.app.AlertDialog;
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import android.content.res.Configuration;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
+import android.support.v4.util.LongSparseArray;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
-import android.support.v4.util.LongSparseArray;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.maps.model.PolygonOptions;
-import com.google.android.gms.maps.model.Polyline;
-import com.google.android.gms.maps.model.PolylineOptions;
-import com.google.maps.android.SphericalUtil;
 import com.valxp.app.infiniteflightwatcher.model.Fleet;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
 import com.valxp.app.infiniteflightwatcher.model.Regions;
 import com.valxp.app.infiniteflightwatcher.model.Users;
 
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener {
+public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, GoogleMap.OnCameraChangeListener {
 
-    private static final long FLIGHT_MAX_LIFETIME_SECONDS = 60 * 3;
-    private static final long MAX_INTERPOLATE_DURATION_MS = FLIGHT_MAX_LIFETIME_SECONDS * 1000;
-    private static final long MINIMUM_INTERPOLATION_SPEED_KTS = 40;
-    private static final int REFRESH_UI_MS = 1000 / 15;
-    private static final int REFRESH_API_MS = 8 * 1000;
-    private static final int REFRESH_INFO_MS = 2 * 1000;
-    private static final double KTS_TO_M_PER_S = .52;
+    public static final long FLIGHT_MAX_LIFETIME_SECONDS = 60 * 3;
+    public static final long MAX_INTERPOLATE_DURATION_MS = FLIGHT_MAX_LIFETIME_SECONDS * 1000;
+    public static final long MINIMUM_INTERPOLATION_SPEED_KTS = 40;
+    public static final int REFRESH_UI_MS = 1000 / 15;
+    public static final int REFRESH_API_MS = 8 * 1000;
+    public static final int REFRESH_INFO_MS = 2 * 1000;
+    public static final double KTS_TO_M_PER_S = .52;
+
+    public static final double MAP_ZOOM_CLUSTER = 5.5; // below 5.5 zoom, cluster markers
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private UpdateThread mUpdateThread;
@@ -65,6 +50,10 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private Marker mLastVisibleMarker = null;
     private InfoPane mInfoPane;
     private Regions mRegions;
+    private float mLastZoom;
+    private int mDrawRate = REFRESH_UI_MS;
+    private Runnable mUpdateRunnable;
+    private boolean mClusterMode = true;
 
 
     @Override
@@ -88,52 +77,48 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             }
         });
         mRegions = new Regions(this);
-        showRegions();
         mMap.setOnMarkerClickListener(this);
         mMap.setOnMapClickListener(this);
-        checkUpdate();
+        mMap.setOnCameraChangeListener(this);
+        AppUpdater.checkUpdate(this);
     }
-
-    private void showRegions() {
-        for (Regions.Region region : mRegions.getRegions()) {
-            mMap.addPolygon(new PolygonOptions()
-                .add(region.getTopLeft())
-                .add(region.getTopRight())
-                .add(region.getBottomRight())
-                .add(region.getBottomLeft())
-                .strokeColor(0xFF555555)
-                .strokeWidth(4)
-            );
-        }
-    }
-
 
     @Override
     protected void onResume() {
         super.onResume();
         TimeProvider.synchronizeWithInternet();
         setUpMapIfNeeded();
+        // Update thread is a thread that will refresh the API data every 8 seconds
         if (mUpdateThread != null && mUpdateThread.isAlive())
             mUpdateThread.requestStop();
         mUpdateThread = new UpdateThread();
         mUpdateThread.start();
+
+        // Refresh handler will call the map drawing on the UI thread every 15th of a second.
         if (mUIRefreshHandler != null)
             mUIRefreshHandler.removeCallbacks(null);
         mUIRefreshHandler = new Handler();
-        mUIRefreshHandler.post(new Runnable() {
+        mUpdateRunnable = new Runnable() {
             @Override
             public void run() {
                 try {
                     synchronized (mFleet) {
                         updateMap();
                     }
-                    mUIRefreshHandler.postDelayed(this, REFRESH_UI_MS);
+                    if (!mClusterMode)
+                        mUIRefreshHandler.postDelayed(this, mDrawRate);
                 } catch (Exception e) {
                     e.printStackTrace();
                     return;
                 }
             }
-        });
+        };
+        refreshUINow();
+    }
+
+    private void refreshUINow() {
+        if (mUIRefreshHandler != null && mUpdateRunnable != null)
+            mUIRefreshHandler.post(mUpdateRunnable);
     }
 
     @Override
@@ -165,15 +150,25 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             updateInfo = true;
         }
 
+        mRegions.draw(mMap, mFleet, mClusterMode);
+
         LatLngBounds boundaries = mMap.getProjection().getVisibleRegion().latLngBounds;
 
         for (Map.Entry<Users.User, Flight> flightEntry : mFleet.getFleet().entrySet()) {
             Flight flight = flightEntry.getValue();
 
+            if (mClusterMode) {
+                flight.removeMarker();
+                flight.removeAproxTrail();
+                flight.removeHistoryTrail();
+                continue;
+            }
+
             // Using this loop to locate the selected flight
             if (mLastVisibleMarker != null && flight.getMarker() != null && flight.getMarker().equals(mLastVisibleMarker)) {
                 selectedFlight = flight;
             }
+            // Block on this flight to make sure the webservice is not busy writing in it in the same time
             synchronized (flight) {
                 LongSparseArray<Flight.FlightData> dataHistory = flight.getFlightHistory();
                 if (dataHistory.size() <= 0)
@@ -181,44 +176,27 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 // We get the last location
                 Flight.FlightData data = dataHistory.valueAt(dataHistory.size() - 1);
                 Marker lastMarker = flight.getMarker();
+                LatLng position = flight.getAproxLocation();
                 // If we are outside the map, we don't need to show the marker
-                if (!boundaries.contains(data.position)
+                if (!boundaries.contains(position)
                     && (lastMarker == null || !boundaries.contains(lastMarker.getPosition()))) {
-                    if (lastMarker != null)
-                        lastMarker.remove();
-                    StrokedPolyLine line = flight.getAproxTrail();
-                    if (line != null)
-                        line.remove();
-                    flight.setAproxTrail(null);
-                    if (lastMarker == mLastVisibleMarker) {
-                        mLastVisibleMarker = null;
+                    flight.removeMarker();
+                    flight.removeAproxTrail();
+                    flight.removeHistoryTrail();
+                    if (flight == selectedFlight)
                         selectedFlight = null;
-                        hideInfoPane();
-                        removePath(flight);
-                    }
-                    flight.setMarker(null);
                     continue;
+                }
+                if (position.equals(data.position)) {
+                    flight.removeAproxTrail();
                 }
                 // Marker update/creation
                 if (lastMarker != null) {
-                    // compute estimated new position based on speed
-                    // Stop interpolating if data is too old
-                    long delta = Math.min(now - data.reportTimestampUTC, MAX_INTERPOLATE_DURATION_MS);
-                    // Disable interpolation if going below 40kts (probably taxiing)
-                    if (data.speed < MINIMUM_INTERPOLATION_SPEED_KTS || delta <= 0) {
-                        delta = 0;
-                        StrokedPolyLine line = flight.getAproxTrail();
-                        if (line != null) {
-                            line.remove();
-                        }
-                        flight.setAproxTrail(null);
-                    }
-                    double distanceMeter = (data.speed * KTS_TO_M_PER_S) * (delta / 1000.0);
-                    LatLng newPos = SphericalUtil.computeOffset(data.position, distanceMeter, data.bearing);
-                    lastMarker.setPosition(newPos);
+                    lastMarker.setPosition(position);
                     lastMarker.setRotation(data.bearing.floatValue());
                 } else {
-                    Marker marker = mMap.addMarker(new MarkerOptions().position(data.position)
+                    Marker marker = mMap.addMarker(new MarkerOptions()
+                            .position(position)
                             .rotation(data.bearing.floatValue())
                             .icon(mBitmapProvider.getAsset(flight))
                             .anchor(.5f, .5f)
@@ -238,9 +216,10 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             synchronized (selectedFlight) {
                 LongSparseArray<Flight.FlightData> dataHistory = selectedFlight.getFlightHistory();
                 Flight.FlightData data = dataHistory.valueAt(dataHistory.size() - 1);
-                // Only update that stuff when once in a while
+                // Only update that stuff once in a while
                 if (updateInfo) {
-                    showInfoPane(selectedFlight);
+                    if (!showInfoPane(selectedFlight))
+                        mLastTimeInfoUpdated += REFRESH_INFO_MS;
                     mMap.animateCamera(CameraUpdateFactory.newLatLng(mLastVisibleMarker.getPosition()));
                 }
                 long delta = Math.min(now - data.reportTimestampUTC, MAX_INTERPOLATE_DURATION_MS);
@@ -251,11 +230,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                         selectedFlight.setAproxTrail(new StrokedPolyLine(mMap, data.speed, data.altitude, data.position, newPos));
                     } else {
                         line.update(data.speed, data.altitude);
-                        List<LatLng> points = line.getPoints();
-                        points.clear();
-                        points.add(data.position);
-                        points.add(newPos);
-                        line.setPoints(points);
+                        line.setPoints(data.position, newPos);
                     }
                 }
                 updatePath(selectedFlight);
@@ -268,75 +243,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         super.onConfigurationChanged(newConfig);
     }
 
-    private void checkUpdate() {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
 
-                URL url = null;
-                try {
-                    url = new URL("http://valxp.net/IFWatcher/version.txt");
-                } catch (MalformedURLException e) {
-                    e.printStackTrace();
-                }
-                try {
-                    InputStream stream = url.openStream();
-                    BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-                    List<String> lines = new ArrayList<String>();
-                    String line = null;
-                    do {
-                        line = reader.readLine();
-                        if (line != null)
-                            lines.add(line);
-                    } while (line != null);
-                    if (lines.size() == 0)
-                        return;
-                    final int newVersion = Integer.decode(lines.get(0));
-                    String description = "";
-                    Iterator<String> it = lines.iterator();
-                    if (it.hasNext())
-                        it.next();
-                    while (it.hasNext()) {
-                        description += it.next() + "\n";
-                    }
-                    final String changelog = description;
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            PackageInfo pInfo = null;
-                            try {
-                                pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
-                            } catch (PackageManager.NameNotFoundException e) {
-                                e.printStackTrace();
-                            }
-                            if (newVersion > pInfo.versionCode) {
-                                AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
-
-                                builder.setTitle("New update available!\nCurrent : v" + pInfo.versionCode + " Latest : v" + newVersion);
-                                String message = "Do you want to download the new version ?\n\n";
-                                if (changelog.length() > 0)
-                                    message += "Changelog :\n" + changelog;
-                                builder.setMessage(message);
-                                builder.setPositiveButton("Okay!", new DialogInterface.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialogInterface, int i) {
-                                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("http://valxp.net/IFWatcher/IFWatcher.apk"));
-                                        startActivity(intent);
-                                    }
-                                });
-                                builder.setNegativeButton("Leave me alone", null);
-                                builder.create().show();
-                            } else {
-                                Toast.makeText(MapsActivity.this, "You are up to date ! (v" + pInfo.versionCode + ")", Toast.LENGTH_SHORT).show();
-                            }
-                        }
-                    });
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }).start();
-    }
 
     private Flight flightForMarker(Marker marker) {
         if (marker == null)
@@ -354,14 +261,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         if (mLastVisibleMarker != null && mLastVisibleMarker != marker) {
             Flight oldFlight = flightForMarker(mLastVisibleMarker);
             if (oldFlight != null) {
-                synchronized (oldFlight) {
-                    removePath(oldFlight);
-                }
-                StrokedPolyLine line = oldFlight.getAproxTrail();
-                if (line != null) {
-                    line.remove();
-                    oldFlight.setAproxTrail(null);
-                }
+                oldFlight.removeHistoryTrail();
+                oldFlight.removeAproxTrail();
             }
             mLastVisibleMarker = null;
         }
@@ -377,23 +278,15 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         }
     }
 
-    private void removePath(Flight flight) {
-            List<StrokedPolyLine> lines = flight.getHistoryTrail();
-            if (lines != null) {
-                for (StrokedPolyLine line : lines) {
-                    line.remove();
-                }
-            }
-            flight.setHistoryTrail(null);
-    }
 
     private void updatePath(Flight flight) {
             ArrayList<StrokedPolyLine> trail = (ArrayList<StrokedPolyLine>) flight.getHistoryTrail();
             if (trail == null)
                 trail = new ArrayList<StrokedPolyLine>();
             LongSparseArray<Flight.FlightData> history = flight.getFlightHistory();
-            if (history == null || history.size() < 2)
-                removePath(flight);
+            if (history == null || history.size() < 2) {
+                flight.removeHistoryTrail();
+            }
             if (trail.size() == 0 || history.size() < 2 ||
                     trail.size() != history.size() - 1 ||
                     !history.valueAt(history.size() - 2).position.equals(trail.get(trail.size() - 1).getPoints().get(0)) ||
@@ -425,6 +318,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
         showInfoPane(marker);
         mMap.animateCamera(CameraUpdateFactory.newLatLng(marker.getPosition()));
+        mRegions.onMarkerClick(mMap, marker);
         return true;
     }
 
@@ -434,6 +328,9 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             setPathVisible(null);
         }
         hideInfoPane();
+        if (mClusterMode) {
+            mRegions.onMapClick(mMap, latLng);
+        }
     }
 
     private void requestPathUpdate(Flight flight) {
@@ -446,9 +343,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mInfoPane.hide();
     }
 
-    private void showInfoPane(Flight flight) {
-        LongSparseArray<Flight.FlightData> history = flight.getFlightHistory();
-        mInfoPane.show(flight);
+    private boolean showInfoPane(Flight flight) {
+        return mInfoPane.show(flight);
     }
 
     private void showInfoPane(Marker marker) {
@@ -457,6 +353,16 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             synchronized (found) {
                 showInfoPane(found);
             }
+        }
+    }
+
+    @Override
+    public void onCameraChange(CameraPosition cameraPosition) {
+        if ((cameraPosition.zoom - MAP_ZOOM_CLUSTER) * (mLastZoom - MAP_ZOOM_CLUSTER) < 0) {
+            mLastZoom = cameraPosition.zoom;
+            mClusterMode = cameraPosition.zoom <= MAP_ZOOM_CLUSTER;
+            Log.d("MapsActivity", "Camera zoom " + cameraPosition.zoom + " Cluster mode " + (mClusterMode ? "enabled" : "disabled"));
+            refreshUINow();
         }
     }
 
@@ -482,6 +388,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                         int fleetSize = mFleet.getActiveFleetSize();
                         mRefreshingText.setVisibility(fleetSize <= 0 ? View.GONE : View.VISIBLE);
                         mRefreshingText.setText(getResources().getQuantityString(R.plurals.N_users_online, fleetSize, fleetSize));
+                        if (mClusterMode)
+                            refreshUINow();
                     }
                 });
                 try {

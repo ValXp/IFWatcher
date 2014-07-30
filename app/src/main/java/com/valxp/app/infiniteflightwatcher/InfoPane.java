@@ -1,6 +1,8 @@
 package com.valxp.app.infiniteflightwatcher;
 
+import android.animation.LayoutTransition;
 import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.support.v4.util.LongSparseArray;
 import android.util.AttributeSet;
 import android.view.View;
@@ -34,27 +36,15 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
 
     private ImageView mPlaneImage;
     private TextView mTapToSeeMore;
+    private View mImageLayout;
+    private View mInnerInfoPane;
 
     private Map<FlightIds, TextView> mRightTexts;
     private HashMap<UserIds, TextView> mLeftTexts;
 
     private boolean mIsFullyDisplayed = false;
+    private LayoutTransition mTransition;
 
-    @Override
-    public void onClick(View view) {
-        mIsFullyDisplayed = !mIsFullyDisplayed;
-        updateFullVisibility();
-    }
-
-    private void updateFullVisibility() {
-        for (int i = 0; i < mLeftPane.getChildCount(); ++i) {
-            mLeftPane.getChildAt(i).setVisibility(i > 2 && !mIsFullyDisplayed ? GONE : VISIBLE);
-        }
-        for (int i = 0; i < mRightPane.getChildCount(); ++i) {
-            mRightPane.getChildAt(i).setVisibility(i > 2 && !mIsFullyDisplayed ? GONE : VISIBLE);
-        }
-        mTapToSeeMore.setVisibility(mIsFullyDisplayed ? GONE : VISIBLE);
-    }
 
     public enum FlightIds{
         CallSign,
@@ -70,6 +60,7 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
     public enum UserIds {
         Name,
         Rank,
+        Roles,
         Standing,
         XP,
         FlightTime,
@@ -99,14 +90,30 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
         init();
     }
 
-    private void init() {
+    private LayoutTransition createTransition() {
+        LayoutTransition transition = new LayoutTransition();
+        transition.setDuration(200);
+        transition.setDuration(LayoutTransition.APPEARING, 200);
+        transition.setStartDelay(LayoutTransition.APPEARING, 200);
+        transition.setStartDelay(LayoutTransition.CHANGE_DISAPPEARING, 0);
+        transition.setStartDelay(LayoutTransition.DISAPPEARING, 200);
+        return transition;
+    }
 
+    private void init() {
+        mTransition = createTransition();
 
         mRightPane = (LinearLayout) findViewById(R.id.right_pane);
         mLeftPane = (LinearLayout) findViewById(R.id.left_pane);
 
+        mRightPane.setLayoutTransition(mTransition);
+        mLeftPane.setLayoutTransition(mTransition);
+
         mPlaneImage = (ImageView) findViewById(R.id.plane_image);
         mTapToSeeMore = (TextView) findViewById(R.id.tap_to_see_more);
+
+        mImageLayout = findViewById(R.id.image_layout);
+        mInnerInfoPane = findViewById(R.id.inner_info_pane);
 
         mRightPane.setOnClickListener(this);
         mLeftPane.setOnClickListener(this);
@@ -140,7 +147,7 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
 
         sep.setTag(tag);
         sep.setLayoutParams(new LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 2));
-        sep.setBackgroundColor(0xFF000000);
+        sep.setBackgroundColor(getResources().getColor(android.R.color.darker_gray));
         return sep;
     }
 
@@ -180,8 +187,27 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
         mPlaneImage.setVisibility(View.GONE);
     }
 
-    public void show(Flight flight) {
+    @Override
+    public void onClick(View view) {
+        mIsFullyDisplayed = !mIsFullyDisplayed;
+        updateFullVisibility();
+    }
 
+    private void updateFullVisibility() {
+        for (int i = 0; i < mLeftPane.getChildCount(); ++i) {
+            mLeftPane.getChildAt(i).setVisibility(i > 2 && !mIsFullyDisplayed ? GONE : VISIBLE);
+        }
+        for (int i = 0; i < mRightPane.getChildCount(); ++i) {
+            mRightPane.getChildAt(i).setVisibility(i > 2 && !mIsFullyDisplayed ? GONE : VISIBLE);
+        }
+        mTapToSeeMore.setVisibility(mIsFullyDisplayed ? GONE : VISIBLE);
+    }
+
+    public boolean show(Flight flight) {
+
+        boolean isUpdate = getVisibility() == VISIBLE;
+        if (isUpdate && mTransition.isRunning())
+            return false;
         updateFullVisibility();
 
         if (getVisibility() != VISIBLE) {
@@ -221,15 +247,24 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
         } else {
             lastUpdate = "Right now";
         }
-        mRightTexts.get(FlightIds.FlightDuration).setText("Flight duration: " + (history.valueAt(0).getAgeMs() / 60000) + "m");
-        mRightTexts.get(FlightIds.TotalDistance).setText("Flight distance : " + (int)flight.getFlightAbsoluteDistance() + "NM");
-        mRightTexts.get(FlightIds.EndToEndDistance).setText("End to end : " + (int)flight.getEndToEndDistance() + "NM");
+        mRightTexts.get(FlightIds.FlightDuration).setText("Duration: " + (history.valueAt(0).getAgeMs() / 60000) + "m");
+        mRightTexts.get(FlightIds.TotalDistance).setText("Distance: " + (int)flight.getFlightAbsoluteDistance() + "NM");
+        mRightTexts.get(FlightIds.EndToEndDistance).setText("End to end: " + (int)flight.getEndToEndDistance() + "NM");
         mRightTexts.get(FlightIds.LastReport).setText(lastUpdate);
 
+        int bgDrawable = R.drawable.shadowed_ui_background;
         Users.User user = flight.getUser();
         if (user.isSet()) {
+            if (user.getRank() == 1) {
+                bgDrawable = R.drawable.shadowed_ui_background_gold;
+            } else if (user.getRole() == Users.User.Role.ADMIN) {
+                bgDrawable = R.drawable.shadowed_ui_background_admin;
+            } else if (user.getRole() == Users.User.Role.TESTER) {
+                bgDrawable = R.drawable.shadowed_ui_background_tester;
+            }
             mLeftTexts.get(UserIds.Name).setText(flight.getDisplayName());
-            mLeftTexts.get(UserIds.Rank).setText("Rank: " + user.getRank().toString());
+            mLeftTexts.get(UserIds.Rank).setText("Rank: " + user.getRank().toString() + (user.getRank() == 1 ? " \\o/" : ""));
+            mLeftTexts.get(UserIds.Roles).setText("Role: " + user.getRole());
             mLeftTexts.get(UserIds.Standing).setText("Standing: " + Math.round(user.getStanding() * 100)+ "%");
             mLeftTexts.get(UserIds.XP).setText("XP: " + user.getSkills());
             mLeftTexts.get(UserIds.FlightTime).setText((int)Math.floor(user.getFlightTime() / 60) + " flight hours");
@@ -237,7 +272,9 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
             mLeftTexts.get(UserIds.Violations).setText("Violations: " + user.getViolations());
             mLeftTexts.get(UserIds.OnlineFlights).setText("Online Flights : " + user.getOnlineFlights());
         }
-
+        mInnerInfoPane.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
+        mImageLayout.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
+        return true;
     }
 
     public void hide() {
