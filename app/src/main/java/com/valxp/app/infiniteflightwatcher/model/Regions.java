@@ -5,7 +5,11 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.drawable.Drawable;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -19,6 +23,7 @@ import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.maps.android.SphericalUtil;
+import com.valxp.app.infiniteflightwatcher.R;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -60,9 +65,15 @@ public class Regions extends ArrayList<Regions.Region> {
         }
     }
 
-    public void draw(GoogleMap map, Fleet fleet, boolean cluster) {
+    public void updateCount(Fleet fleet) {
         for (Regions.Region region : this) {
-            region.draw(map, fleet, cluster);
+            region.updateCount(fleet);
+        }
+    }
+
+    public void draw(GoogleMap map, boolean cluster) {
+        for (Regions.Region region : this) {
+            region.draw(map, cluster);
         }
     }
 
@@ -78,12 +89,21 @@ public class Regions extends ArrayList<Regions.Region> {
         }
     }
 
+    public Region regionContainingPoint(LatLng position) {
+        for (Regions.Region region : this) {
+            if (region.contains(position))
+                return region;
+        }
+        return null;
+    }
+
     public class Region {
         private LatLng mTopLeft, mTopRight, mBottomRight, mBottomLeft;
         private LatLngBounds bounds;
         private String mName;
         private Polygon mLine;
         private Marker mMarker;
+        private int mCount;
         private int mLastCount;
 
         public Region(JSONObject object) throws JSONException {
@@ -96,7 +116,26 @@ public class Regions extends ArrayList<Regions.Region> {
             mLastCount = -1;
         }
 
-        public void draw(GoogleMap map, Fleet fleet, boolean cluster) {
+        public void updateCount(Fleet fleet) {
+            mCount = 0;
+            for (Map.Entry<Users.User, Flight> entry : fleet.getFleet().entrySet()) {
+                Flight flight = entry.getValue();
+                synchronized (flight) {
+                    Flight.FlightData current = flight.getCurrentData();
+                    if (current != null && bounds.contains(current.position)) {
+                        ++mCount;
+                    }
+                }
+            }
+        }
+
+        public void showInside() {
+            if (mLine != null) {
+                mLine.setFillColor(0x05000000);
+            }
+        }
+
+        public void draw(GoogleMap map, boolean cluster) {
             if (mLine == null) {
                 mLine = map.addPolygon(new PolygonOptions()
                         .add(getTopLeft())
@@ -107,30 +146,26 @@ public class Regions extends ArrayList<Regions.Region> {
                         .strokeWidth(4));
             }
             if (cluster) {
-                int count = 0;
-                for (Map.Entry<Users.User, Flight> entry : fleet.getFleet().entrySet()) {
-                    Flight flight = entry.getValue();
-                    synchronized (flight) {
-                        Flight.FlightData current = flight.getCurrentData();
-                        if (current != null && bounds.contains(current.position)) {
-                            ++count;
-                        }
-                    }
-                }
-                mLine.setFillColor(count > 0 ? 0xFFE0FFE0 : 0xFFFFFFFF);
-                if (mLastCount != count || mMarker == null) {
+                mLine.setFillColor(mCount > 0 ? 0xFFE0FFE0 : 0xFFFFFFFF);
+                if (mLastCount != mCount || mMarker == null) {
+                    mLastCount = mCount;
                     if (mMarker != null)
                         mMarker.remove();
-                    String text = Integer.toString(count);
-                    Bitmap bmp = Bitmap.createBitmap(TEXT_SIZE * text.length(), 40, Bitmap.Config.ARGB_4444);
+                    String text = Integer.toString(mCount);
+                    TextView t = (TextView) LayoutInflater.from(mContext).inflate(R.layout.region_counter, null);
+                    t.setText(text);
+                    t.measure(View.MeasureSpec.getSize(t.getMeasuredWidth()), View.MeasureSpec.getSize(t.getMeasuredHeight()));
+                    Bitmap bmp = Bitmap.createBitmap(t.getMeasuredWidth(), t.getMeasuredHeight(), Bitmap.Config.ARGB_4444);//TEXT_SIZE * text.length(), 44, Bitmap.Config.ARGB_4444);
+                    t.layout(0, 0, bmp.getWidth(), bmp.getHeight());
                     Canvas canvas = new Canvas(bmp);
-                    canvas.drawARGB(0x00, 0xff, 0xff, 0xff);
-                    Paint p = new Paint();
-                    p.setColor(Color.BLACK);
-                    p.setStyle(Paint.Style.FILL);
-                    p.setLinearText(true);
-                    p.setTextSize(50);
-                    canvas.drawText(text, 0, 38, p);
+                    t.draw(canvas);
+//                    canvas.drawARGB(0x00, 0xff, 0xff, 0xff);
+//                    Paint p = new Paint();
+//                    p.setColor(Color.BLACK);
+//                    p.setStyle(Paint.Style.FILL);
+//                    p.setLinearText(true);
+//                    p.setTextSize(50);
+//                    canvas.drawText(text, 0, 36, p);
                     MarkerOptions options = new MarkerOptions()
                             .position(SphericalUtil.interpolate(mBottomLeft, mTopRight, .5))
                             .anchor(.5f, .5f)
@@ -146,6 +181,10 @@ public class Regions extends ArrayList<Regions.Region> {
             }
         }
 
+        public boolean contains(LatLng position) {
+            return bounds.contains(position);
+        }
+
         public void onMapClick(GoogleMap map, LatLng loc) {
             if (bounds.contains(loc))
                 zoomOnRegion(map);
@@ -156,9 +195,13 @@ public class Regions extends ArrayList<Regions.Region> {
                 zoomOnRegion(map);
         }
 
-        private void zoomOnRegion(GoogleMap map) {
-            map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 0));
+        public void zoomOnRegion(GoogleMap map, GoogleMap.CancelableCallback callback) {
+            map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 0), callback);
             Toast.makeText(mContext, "Welcome to " + mName + "!", Toast.LENGTH_SHORT).show();
+        }
+
+        public void zoomOnRegion(GoogleMap map) {
+            zoomOnRegion(map, null);
         }
 
         public String getName() {
@@ -179,6 +222,10 @@ public class Regions extends ArrayList<Regions.Region> {
 
         public LatLng getBottomLeft() {
             return mBottomLeft;
+        }
+
+        public int getPlayerCount() {
+            return mCount;
         }
     }
 }

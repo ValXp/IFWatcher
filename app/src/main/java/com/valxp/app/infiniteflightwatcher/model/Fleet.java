@@ -75,6 +75,9 @@ public class Fleet {
         return mFleet;
     }
 
+    public Users getUsers() {
+        return mUsers;
+    }
 
     synchronized private void parseFlightList(JSONArray array) {
         if (array == null)
@@ -96,6 +99,7 @@ public class Fleet {
         }
         Flight found = mFleet.get(tempFlight.getUser());
         if (found == null) {
+            tempFlight.getUser().setCurrentFlight(tempFlight);
             mFleet.put(tempFlight.getUser(), tempFlight);
             tempFlight.getUser().markForUpdate();
         } else if (tempFlight.getFlightID().equals(found.getFlightID())) {
@@ -106,6 +110,7 @@ public class Fleet {
             Flight toKeep = keepFound ? found : tempFlight;
             removeFlight(toRemove);
             mFleet.put(toKeep.getUser(), toKeep);
+            toKeep.getUser().setCurrentFlight(toKeep);
         }
     }
 
@@ -148,6 +153,9 @@ public class Fleet {
 
     private void removeFlight(Flight flight, List<StrokedPolyLine> linesToRemove, List<Marker> markersToRemove) {
         Log.d("Fleet", "Removing old flight (" + (flight.getAgeMs() / 60000) + " minutes old): " + flight.toString());
+        if (flight.getUser().getCurrentFlight() == flight) {
+            flight.getUser().setCurrentFlight(null);
+        }
         Marker mark = flight.getMarker();
         List<StrokedPolyLine> lines = flight.getHistoryTrail();
         if (lines != null) {
