@@ -21,11 +21,13 @@ public class Users {
     }
 
     public User addUser(String id) {
-        User user = mUsers.get(id);
-        if (user == null) {
-            mUsers.put(id, new User(id));
+        synchronized (mUsers) {
+            User user = mUsers.get(id);
+            if (user == null) {
+                mUsers.put(id, new User(id));
+            }
+            return mUsers.get(id);
         }
-        return mUsers.get(id);
     }
 
     public void update(String id, boolean force) {
@@ -56,6 +58,21 @@ public class Users {
         update(null, force);
     }
 
+    public Map<String, User> getUsers() {
+        return mUsers;
+    }
+
+    public int getActiveUserCount() {
+        synchronized (mUsers) {
+            int count = 0;
+            for (Map.Entry<String, User> pair : mUsers.entrySet()) {
+                if (pair.getValue().getCurrentFlight() != null) {
+                    ++count;
+                }
+            }
+            return count;
+        }
+    }
 
     private void parseJson(JSONArray array) throws JSONException {
         if (array == null)
@@ -66,7 +83,9 @@ public class Users {
             if (user != null) {
                 user.set(temp);
             } else {
-                mUsers.put(temp.getId(), temp);
+                synchronized (mUsers) {
+                    mUsers.put(temp.getId(), temp);
+                }
             }
         }
     }
@@ -89,6 +108,8 @@ public class Users {
         private Double mStanding; // 0 -> 0% 1 -> 100%
         private Long mViolations;
         private Role mRole;
+
+        private Flight mCurrentFlight;
 
         private boolean mIsSet;
 
@@ -141,6 +162,7 @@ public class Users {
             Integer role = object.getInt("Roles");
             mRole = role == null ? Role.fromValue(0) : Role.fromValue(role.intValue());
 
+            mCurrentFlight = null;
             mIsSet = true;
         }
 
@@ -208,6 +230,14 @@ public class Users {
 
         public Role getRole() {
             return mRole;
+        }
+
+        public Flight getCurrentFlight() {
+            return mCurrentFlight;
+        }
+
+        public void setCurrentFlight(Flight flight) {
+            mCurrentFlight = flight;
         }
     }
 }

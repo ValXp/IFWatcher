@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="admin_color">
+        #FF5588FF
+    </color>
+    <color name="tester_color">
+        #FF55FF88
+    </color>
+    <color name="gold_color">
+        #FFFFd700
+    </color>
+</resources>

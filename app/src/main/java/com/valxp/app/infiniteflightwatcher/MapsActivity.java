@@ -1,13 +1,22 @@
 package com.valxp.app.infiniteflightwatcher;
 
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.v4.app.ActionBarDrawerToggle;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.util.LongSparseArray;
+import android.support.v4.widget.DrawerLayout;
 import android.util.Log;
+import android.view.DragEvent;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ExpandableListView;
+import android.widget.FrameLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -15,19 +24,17 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.MarkerOptions;
+import com.valxp.app.infiniteflightwatcher.adapters.MainListAdapter;
 import com.valxp.app.infiniteflightwatcher.model.Fleet;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
 import com.valxp.app.infiniteflightwatcher.model.Regions;
 import com.valxp.app.infiniteflightwatcher.model.Users;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
-public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, GoogleMap.OnCameraChangeListener {
+public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, GoogleMap.OnCameraChangeListener, ExpandableListView.OnChildClickListener, TouchableMapFragment.TouchableWrapper.UpdateMapAfterUserInteraction{
 
     public static final long FLIGHT_MAX_LIFETIME_SECONDS = 60 * 3;
     public static final long MAX_INTERPOLATE_DURATION_MS = FLIGHT_MAX_LIFETIME_SECONDS * 1000;
@@ -45,7 +52,11 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private Handler mUIRefreshHandler;
     private long mLastTimeInfoUpdated;
     private TextView mNobodyPlayingText;
-    private TextView mRefreshingText;
+    private ProgressBar mProgress;
+    private ExpandableListView mExpandableList;
+    private DrawerLayout mDrawer;
+    private View mDrawerHandle;
+    private MainListAdapter mListAdapter;
     private AirplaneBitmapProvider mBitmapProvider;
     private Marker mLastVisibleMarker = null;
     private InfoPane mInfoPane;
@@ -55,6 +66,13 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private Runnable mUpdateRunnable;
     private boolean mClusterMode = true;
 
+    private float dpFromPx(float px) {
+        return px / getResources().getDisplayMetrics().density;
+    }
+
+    private float pxFromDp(float dp) {
+        return dp * getResources().getDisplayMetrics().density;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,7 +84,23 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mInfoPane = (InfoPane) findViewById(R.id.info_pane);
         Button button = (Button) findViewById(R.id.toggleMapType);
         mNobodyPlayingText = (TextView) findViewById(R.id.nobody_is_playing);
-        mRefreshingText = (TextView) findViewById(R.id.refreshing_data);
+        mProgress = (ProgressBar) findViewById(R.id.progress);
+        mExpandableList = (ExpandableListView) findViewById(R.id.expandableList);
+        mDrawer = (DrawerLayout) findViewById(R.id.drawer);
+        mDrawerHandle = findViewById(R.id.drawer_handle);
+        TextView version = (TextView) findViewById(R.id.version);
+        try {
+            PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            version.setText("Version "+pInfo.versionCode);
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+        mDrawerHandle.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                mDrawer.openDrawer(Gravity.LEFT);
+            }
+        });
         button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -77,6 +111,30 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             }
         });
         mRegions = new Regions(this);
+
+        mListAdapter = new MainListAdapter(this, mFleet, mRegions);
+        mExpandableList.setOnChildClickListener(this);
+        mExpandableList.setAdapter(mListAdapter);
+        mDrawer.setDrawerListener(new DrawerLayout.DrawerListener() {
+            @Override
+            public void onDrawerSlide(View drawerView, float slideOffset) {
+                FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) mDrawerHandle.getLayoutParams();
+                params.setMargins((int) pxFromDp(-6 - slideOffset * 20), (int)pxFromDp(5), 0, 0);
+                mDrawerHandle.setLayoutParams(params);
+            }
+
+            @Override
+            public void onDrawerOpened(View drawerView) {
+            }
+
+            @Override
+            public void onDrawerClosed(View drawerView) {
+            }
+
+            @Override
+            public void onDrawerStateChanged(int newState) {
+            }
+        });
         mMap.setOnMarkerClickListener(this);
         mMap.setOnMapClickListener(this);
         mMap.setOnCameraChangeListener(this);
@@ -131,12 +189,9 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     }
 
     private void setUpMapIfNeeded() {
-        // Do a null check to confirm that we have not already instantiated the map.
         if (mMap == null) {
-            // Try to obtain the map from the SupportMapFragment.
             mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
                     .getMap();
-            // Check if we were successful in obtaining the map.
         }
     }
 
@@ -150,9 +205,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             updateInfo = true;
         }
 
-        mRegions.draw(mMap, mFleet, mClusterMode);
-
-        LatLngBounds boundaries = mMap.getProjection().getVisibleRegion().latLngBounds;
+        mRegions.draw(mMap, mClusterMode);
 
         for (Map.Entry<Users.User, Flight> flightEntry : mFleet.getFleet().entrySet()) {
             Flight flight = flightEntry.getValue();
@@ -163,7 +216,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 flight.removeHistoryTrail();
                 continue;
             }
-
             // Using this loop to locate the selected flight
             if (mLastVisibleMarker != null && flight.getMarker() != null && flight.getMarker().equals(mLastVisibleMarker)) {
                 selectedFlight = flight;
@@ -177,16 +229,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 Flight.FlightData data = dataHistory.valueAt(dataHistory.size() - 1);
                 Marker lastMarker = flight.getMarker();
                 LatLng position = flight.getAproxLocation();
-                // If we are outside the map, we don't need to show the marker
-                if (!boundaries.contains(position)
-                    && (lastMarker == null || !boundaries.contains(lastMarker.getPosition()))) {
-                    flight.removeMarker();
-                    flight.removeAproxTrail();
-                    flight.removeHistoryTrail();
-                    if (flight == selectedFlight)
-                        selectedFlight = null;
-                    continue;
-                }
                 if (position.equals(data.position)) {
                     flight.removeAproxTrail();
                 }
@@ -195,13 +237,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                     lastMarker.setPosition(position);
                     lastMarker.setRotation(data.bearing.floatValue());
                 } else {
-                    Marker marker = mMap.addMarker(new MarkerOptions()
-                            .position(position)
-                            .rotation(data.bearing.floatValue())
-                            .icon(mBitmapProvider.getAsset(flight))
-                            .anchor(.5f, .5f)
-                            .flat(true)); // Flat will keep the rotation based on the north
-                    flight.setMarker(marker);
+                    flight.createMarker(mMap, mBitmapProvider);
                 }
             }
         }
@@ -220,7 +256,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 if (updateInfo) {
                     if (!showInfoPane(selectedFlight))
                         mLastTimeInfoUpdated += REFRESH_INFO_MS;
-                    mMap.animateCamera(CameraUpdateFactory.newLatLng(mLastVisibleMarker.getPosition()));
+                    if (mInfoPane.isFollowing())
+                        mMap.animateCamera(CameraUpdateFactory.newLatLng(mLastVisibleMarker.getPosition()));
                 }
                 long delta = Math.min(now - data.reportTimestampUTC, MAX_INTERPOLATE_DURATION_MS);
                 if (delta > REFRESH_UI_MS) {
@@ -309,15 +346,49 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             flight.setHistoryTrail(trail);
     }
 
-
-    @Override
-    public boolean onMarkerClick(Marker marker) {
+    private void selectMarker(Marker marker) {
+        mInfoPane.setFollow(false);
         synchronized (mFleet) {
             setPathVisible(marker);
         }
 
         showInfoPane(marker);
-        mMap.animateCamera(CameraUpdateFactory.newLatLng(marker.getPosition()));
+        Flight flight = flightForMarker(marker);
+        if (flight != null) {
+            flight.zoomIn(mMap, new GoogleMap.CancelableCallback() {
+                @Override
+                public void onFinish() {
+                    mInfoPane.setFollow(true);
+                }
+                @Override
+                public void onCancel() {
+                }
+            });
+        }
+    }
+
+    @Override
+    public boolean onMarkerClick(Marker marker) {
+        mInfoPane.setFollow(false);
+        synchronized (mFleet) {
+            setPathVisible(marker);
+        }
+
+        showInfoPane(marker);
+        Flight flight = flightForMarker(marker);
+        if (flight != null) {
+            mMap.animateCamera(CameraUpdateFactory.newLatLng(flight.getAproxLocation()), new GoogleMap.CancelableCallback() {
+                @Override
+                public void onFinish() {
+                    mInfoPane.setFollow(true);
+                }
+                @Override
+                public void onCancel() {
+                    mInfoPane.setFollow(true);
+
+                }
+            });
+        }
         mRegions.onMarkerClick(mMap, marker);
         return true;
     }
@@ -366,6 +437,65 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         }
     }
 
+    private void refreshList() {
+        Log.d("MapsActivity", "Refreshing list");
+        boolean regionsExpanded = mExpandableList.isGroupExpanded(0);
+        boolean usersExpanded = mExpandableList.isGroupExpanded(1);
+        int pos = mExpandableList.getFirstVisiblePosition();
+        mListAdapter = new MainListAdapter(this, mFleet, mRegions);
+        mExpandableList.setAdapter(mListAdapter);
+        if (regionsExpanded)
+            mExpandableList.expandGroup(0);
+        if (usersExpanded)
+            mExpandableList.expandGroup(1);
+        mExpandableList.setSelection(pos);
+        mExpandableList.setOnChildClickListener(this);
+    }
+
+    @Override
+    public boolean onChildClick(ExpandableListView expandableListView, View view, int i, int i2, long l) {
+        Object tag = view.getTag();
+        if (tag == null)
+            return false;
+        if (i == MainListAdapter.REGIONS_INDEX) {
+            Regions.Region region = (Regions.Region) tag;
+            mDrawer.closeDrawers();
+            region.zoomOnRegion(mMap);
+            synchronized (mFleet) {
+                setPathVisible(null);
+            }
+            hideInfoPane();
+        } else if (i == MainListAdapter.USERS_INDEX) {
+            final Flight flight = (Flight) tag;
+            mDrawer.closeDrawers();
+            Regions.Region region = mRegions.regionContainingPoint(flight.getAproxLocation());
+            if (region != null && mClusterMode) {
+                region.showInside();
+                region.zoomOnRegion(mMap, new GoogleMap.CancelableCallback() {
+                    @Override
+                    public void onFinish() {
+                        flight.createMarker(mMap, mBitmapProvider);
+                        selectMarker(flight.getMarker());
+                    }
+
+                    @Override
+                    public void onCancel() {
+                    }
+                });
+
+            } else {
+                flight.createMarker(mMap, mBitmapProvider);
+                selectMarker(flight.getMarker());
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public void onUpdateMapAfterUserInteraction() {
+        mInfoPane.setFollow(false);
+    }
+
     private class UpdateThread extends Thread {
         private boolean mStop = false;
 
@@ -375,21 +505,20 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        mRefreshingText.setVisibility(View.VISIBLE);
-                        mRefreshingText.setText(R.string.refreshing_data);
+                        mProgress.setVisibility(View.VISIBLE);
                     }
                 });
                 final Runnable toRunOnUI = mFleet.updateFleet(FLIGHT_MAX_LIFETIME_SECONDS);
+                mRegions.updateCount(mFleet);
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         if (toRunOnUI != null)
                             toRunOnUI.run();
-                        int fleetSize = mFleet.getActiveFleetSize();
-                        mRefreshingText.setVisibility(fleetSize <= 0 ? View.GONE : View.VISIBLE);
-                        mRefreshingText.setText(getResources().getQuantityString(R.plurals.N_users_online, fleetSize, fleetSize));
+                        mProgress.setVisibility(View.GONE);
                         if (mClusterMode)
                             refreshUINow();
+                        refreshList();
                     }
                 });
                 try {

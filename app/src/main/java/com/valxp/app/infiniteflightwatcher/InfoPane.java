@@ -2,6 +2,8 @@ package com.valxp.app.infiniteflightwatcher;
 
 import android.animation.LayoutTransition;
 import android.content.Context;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.support.v4.util.LongSparseArray;
 import android.util.AttributeSet;
@@ -38,11 +40,13 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
     private TextView mTapToSeeMore;
     private View mImageLayout;
     private View mInnerInfoPane;
+    private ImageView mMyLoc;
 
     private Map<FlightIds, TextView> mRightTexts;
     private HashMap<UserIds, TextView> mLeftTexts;
 
     private boolean mIsFullyDisplayed = false;
+    private boolean mFollow;
     private LayoutTransition mTransition;
 
 
@@ -115,10 +119,18 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
         mImageLayout = findViewById(R.id.image_layout);
         mInnerInfoPane = findViewById(R.id.inner_info_pane);
 
+        mMyLoc = (ImageView) findViewById(R.id.my_loc);
+
         mRightPane.setOnClickListener(this);
         mLeftPane.setOnClickListener(this);
         mPlaneImage.setOnClickListener(this);
         mTapToSeeMore.setOnClickListener(this);
+        mMyLoc.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                setFollow(!isFollowing());
+            }
+        });
 
         mRightTexts = new HashMap<FlightIds, TextView>();
         mLeftTexts = new HashMap<UserIds, TextView>();
@@ -203,6 +215,19 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
         mTapToSeeMore.setVisibility(mIsFullyDisplayed ? GONE : VISIBLE);
     }
 
+    public void setFollow(boolean follow) {
+        mFollow = follow;
+
+        String color = mFollow ? "#000000" : "#50000000";
+        Drawable d = getResources().getDrawable(android.R.drawable.ic_menu_mylocation);
+        d.setColorFilter(Color.parseColor(color), PorterDuff.Mode.SRC_ATOP);
+        mMyLoc.setImageDrawable(d);
+    }
+
+    public boolean isFollowing() {
+        return mFollow;
+    }
+
     public boolean show(Flight flight) {
 
         boolean isUpdate = getVisibility() == VISIBLE;
@@ -274,6 +299,7 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
         }
         mInnerInfoPane.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
         mImageLayout.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
+        mMyLoc.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
         return true;
     }
 

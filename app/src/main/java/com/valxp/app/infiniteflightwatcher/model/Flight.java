@@ -3,10 +3,16 @@ package com.valxp.app.infiniteflightwatcher.model;
 import android.util.Log;
 import android.support.v4.util.LongSparseArray;
 
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.maps.android.SphericalUtil;
+import com.google.maps.android.geometry.Bounds;
 import com.valxp.app.infiniteflightwatcher.APIConstants;
+import com.valxp.app.infiniteflightwatcher.AirplaneBitmapProvider;
 import com.valxp.app.infiniteflightwatcher.MapsActivity;
 import com.valxp.app.infiniteflightwatcher.StrokedPolyLine;
 import com.valxp.app.infiniteflightwatcher.TimeProvider;
@@ -23,6 +29,7 @@ import java.util.List;
  */
 public class Flight {
     public static double METERS_TO_NAUTICAL_MILES = 0.000539957;
+    public static long FULL_FLIGHT_MIN_DELAY = 2 * 3600; // MS
     private String mAircraftName;
     private String mCallSign;
     private String mDisplayName;
@@ -30,12 +37,45 @@ public class Flight {
     private String mUserID;
     private Long mLastReportUTC;
     private Users.User mUser;
+    private Bounds mBounds;
+    private long mLastFullFlightPulledTime;
 
     private LongSparseArray<FlightData> mFlightHistory;
     private Marker mMarker;
     private List<StrokedPolyLine> mHistoryTrail;
     private StrokedPolyLine mAproxTrail;
     private boolean mNeedsUpdate = false;
+
+    private static class Bounds {
+        public double minLat;
+        public double maxLat;
+        public double minLon;
+        public double maxLon;
+        private LatLngBounds mBounds;
+
+        public Bounds(LatLng pos) {
+            mBounds = null;
+            minLat = pos.latitude;
+            maxLat = pos.latitude;
+            minLon = pos.longitude;
+            maxLon = pos.longitude;
+        }
+
+        public void update(LatLng pos) {
+            mBounds = null;
+            minLat = Math.min(minLat, pos.latitude);
+            minLon = Math.min(minLon, pos.longitude);
+            maxLat = Math.max(maxLat, pos.latitude);
+            maxLon = Math.max(maxLon, pos.longitude);
+        }
+
+        public LatLngBounds getBounds() {
+            if (mBounds == null) {
+                mBounds = new LatLngBounds(new LatLng(minLat, minLon), new LatLng(maxLat, maxLon));
+            }
+            return mBounds;
+        }
+    }
 
     public Flight(Users users, JSONObject object) throws JSONException {
         mFlightHistory = new LongSparseArray<FlightData>();
@@ -50,6 +90,11 @@ public class Flight {
         mFlightHistory.append(data.reportTimestampUTC, data);
         mUser = users.addUser(mUserID);
         //Log.d("FlightPArsing", this.toString());
+        mBounds = new Bounds(data.position);
+    }
+
+    public void zoomIn(GoogleMap map, GoogleMap.CancelableCallback cb) {
+        map.animateCamera(CameraUpdateFactory.newLatLngZoom(getAproxLocation(), (float) (14 - (getCurrentData().speed / 150))), cb);
     }
 
     public void addFlightData(LongSparseArray<FlightData> data) {
@@ -57,6 +102,7 @@ public class Flight {
         if (data.size() <= 0 || mFlightHistory.size() <= 0)
             return;
         for (int i = 0; i < data.size(); ++i) {
+            mBounds.update(data.valueAt(i).position);
             mFlightHistory.append(data.keyAt(i), data.valueAt(i));
         }
     }
@@ -65,6 +111,9 @@ public class Flight {
     // Retrieves the full flight from the server
     public void pullFullFlight() {
         Log.d("Flight", "Pulling full flight...");
+        if (TimeProvider.getTime() - mLastFullFlightPulledTime < FULL_FLIGHT_MIN_DELAY)
+            return;
+        mLastFullFlightPulledTime = TimeProvider.getTime();
         JSONArray array = Webservices.getJSON(APIConstants.APICalls.FLIGHT_DETAILS, "{\"FlightID\":\"" + mFlightID + "\"}");
         if (array == null)
             return;
@@ -74,6 +123,7 @@ public class Flight {
                 FlightData data = null;
                 try {
                     data = new FlightData(array.getJSONObject(i));
+                    mBounds.update(data.position);
                     mFlightHistory.append(data.reportTimestampUTC, data);
                 } catch (JSONException e) {
                     e.printStackTrace();
@@ -130,9 +180,22 @@ public class Flight {
     }
 
     public void removeMarker() {
-        if (this.mMarker != null)
+        if (this.mMarker != null) {
             this.mMarker.remove();
+        }
         this.mMarker = null;
+    }
+
+    public void createMarker(GoogleMap map, AirplaneBitmapProvider provider) {
+        if (mMarker != null)
+            return;
+        Marker marker = map.addMarker(new MarkerOptions()
+                .position(getAproxLocation())
+                .rotation(getCurrentData().bearing.floatValue())
+                .icon(provider.getAsset(this))
+                .anchor(.5f, .5f)
+                .flat(true)); // Flat will keep the rotation based on the north
+        setMarker(marker);
     }
 
     public List<StrokedPolyLine> getHistoryTrail() {
