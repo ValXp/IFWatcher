@@ -28,11 +28,7 @@ public class TimeProvider {
                     sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
                     mTimeOffset = sdf.parse(reader.readLine().substring(0, 19)).getTime() - System.currentTimeMillis() - (3600 * 1000);
                     Log.d("TimeProvider", "Time updated from server. Offset : " + mTimeOffset);
-                } catch (MalformedURLException e) {
-                    e.printStackTrace();
-                } catch (ParseException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
