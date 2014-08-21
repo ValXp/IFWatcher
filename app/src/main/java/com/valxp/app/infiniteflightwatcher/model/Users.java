@@ -176,8 +176,8 @@ public class Users {
             this.mSkills = other.mSkills;
             this.mStanding = other.mStanding;
             this.mViolations = other.mViolations;
-            this.mIsSet = true;
             this.mRole = other.mRole;
+            this.mIsSet = true;
         }
 
         public void markForUpdate() {

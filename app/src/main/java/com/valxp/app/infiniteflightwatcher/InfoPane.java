@@ -297,9 +297,9 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
             mLeftTexts.get(UserIds.Violations).setText("Violations: " + user.getViolations());
             mLeftTexts.get(UserIds.OnlineFlights).setText("Online Flights : " + user.getOnlineFlights());
         }
-        mInnerInfoPane.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
+//        mInnerInfoPane.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
         mImageLayout.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
-        mMyLoc.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
+//        mMyLoc.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
         return true;
     }
 

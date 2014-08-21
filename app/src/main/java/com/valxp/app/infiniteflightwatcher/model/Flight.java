@@ -107,7 +107,6 @@ public class Flight {
         }
     }
 
-
     // Retrieves the full flight from the server
     public void pullFullFlight() {
         Log.d("Flight", "Pulling full flight...");
@@ -187,16 +186,32 @@ public class Flight {
     }
 
     public void createMarker(GoogleMap map, AirplaneBitmapProvider provider) {
-        if (mMarker != null)
+        createMarker(map, provider, false);
+    }
+
+    private void createMarker(GoogleMap map, AirplaneBitmapProvider provider, boolean selected) {
+        // Marker creation needs the user to be set
+        if (mMarker != null || !mUser.isSet())
             return;
         Marker marker = map.addMarker(new MarkerOptions()
                 .position(getAproxLocation())
                 .rotation(getCurrentData().bearing.floatValue())
-                .icon(provider.getAsset(this))
+                .icon(provider.getAsset(this, selected))
                 .anchor(.5f, .5f)
                 .flat(true)); // Flat will keep the rotation based on the north
         setMarker(marker);
+        if (selected)
+            marker.showInfoWindow();
     }
+
+    public void selectMarker(GoogleMap map, AirplaneBitmapProvider provider, boolean select) {
+        if (mMarker != null) {
+            mMarker.remove();
+            mMarker = null;
+        }
+        createMarker(map, provider, select);
+    }
+
 
     public List<StrokedPolyLine> getHistoryTrail() {
         return mHistoryTrail;
