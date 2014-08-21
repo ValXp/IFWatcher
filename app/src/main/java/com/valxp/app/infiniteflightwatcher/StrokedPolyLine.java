@@ -32,7 +32,6 @@ public class StrokedPolyLine {
 
     public void setPoints(LatLng first, LatLng second) {
         LatLng firstOffset = SphericalUtil.interpolate(first, second, .01);
-        LatLng secondOffset = SphericalUtil.interpolate(first, second, .99);
         List<LatLng> list = mStroke.getPoints();
         if (list == null)
             list = new ArrayList<LatLng>();
@@ -45,7 +44,7 @@ public class StrokedPolyLine {
             list = new ArrayList<LatLng>();
         list.clear();
         list.add(firstOffset);
-        list.add(secondOffset);
+        list.add(second);
         mLine.setPoints(list);
     }
 
