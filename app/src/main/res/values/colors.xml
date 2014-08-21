@@ -9,4 +9,7 @@
     <color name="gold_color">
         #FFFFd700
     </color>
+    <color name="orange_color">
+        #FFbb5a00
+    </color>
 </resources>

@@ -2,18 +2,23 @@ package com.valxp.app.infiniteflightwatcher.adapters;
 
 import android.content.Context;
 import android.database.DataSetObserver;
+import android.graphics.drawable.Drawable;
+import android.media.Image;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ExpandableListAdapter;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.valxp.app.infiniteflightwatcher.R;
 import com.valxp.app.infiniteflightwatcher.model.Fleet;
+import com.valxp.app.infiniteflightwatcher.model.Flight;
 import com.valxp.app.infiniteflightwatcher.model.Regions;
 import com.valxp.app.infiniteflightwatcher.model.Users;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -151,8 +156,11 @@ public class MainListAdapter implements ExpandableListAdapter {
             LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             view = inflater.inflate(R.layout.item_view, null);
         }
+        ImageView image = (ImageView) view.findViewById(R.id.item_image);
         TextView name = (TextView) view.findViewById(R.id.item_name);
         TextView count = (TextView) view.findViewById(R.id.item_count);
+        name.setShadowLayer(0, 0, 0, 0);
+        image.setVisibility(View.GONE);
         view.setTag(null);
 
         Object item = getChild(i, i2);
@@ -167,21 +175,32 @@ public class MainListAdapter implements ExpandableListAdapter {
         } else if (i == USERS_INDEX && item != null) {
             Users.User user = (Users.User) item;
             int color = android.R.color.black;
+            int bgColor = android.R.color.white;
             switch (user.getRole()) {
                 case UNKNOWN:
                     break;
                 case USER:
+                    color = R.color.orange_color;
+                    bgColor = android.R.color.black;
                     break;
                 case TESTER:
                     color = R.color.tester_color;
+                    bgColor = android.R.color.black;
                     break;
                 case ADMIN:
                     color = R.color.admin_color;
+                    bgColor = android.R.color.black;
                     break;
             }
-            if (user.getRank() == 1)
+            if (user.getRank() == 1) {
                 color = R.color.gold_color;
+                bgColor = android.R.color.black;
+            }
+            name.setShadowLayer(3, 3, 3, mContext.getResources().getColor(bgColor));
+
             name.setTextColor(mContext.getResources().getColor(color));
+            image.setVisibility(View.VISIBLE);
+            image.setImageDrawable(getPlaneImage(user.getCurrentFlight()));
             count.setTextColor(mContext.getResources().getColor(android.R.color.black));
             name.setText(user.getName());
             String text;
@@ -201,6 +220,23 @@ public class MainListAdapter implements ExpandableListAdapter {
         return view;
     }
 
+    private Drawable getPlaneImage(Flight flight) {
+        String plane = flight.getAircraftName();
+        plane = plane.replace(" ", "_").replace("-", "_").replace("/", "_").toLowerCase();
+        plane = "image_" + plane;
+
+        Field[] fields = R.drawable.class.getDeclaredFields();
+        for (Field field : fields) {
+            if (field.getName().equals(plane)) {
+                try {
+                    return mContext.getResources().getDrawable(field.getInt(R.drawable.class));
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return null;
+    }
     @Override
     public boolean isChildSelectable(int i, int i2) {
         return true;

@@ -1,10 +1,20 @@
 package com.valxp.app.infiniteflightwatcher;
 
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
+import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
 import android.util.Log;
 
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
+import com.valxp.app.infiniteflightwatcher.model.Users;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -16,10 +26,12 @@ import java.util.Map;
 public class AirplaneBitmapProvider {
     private static final String DRAWABLE_PREFIX = "airplanes_";
 
-    private Map<String, BitmapDescriptor> mIcons;
+    private Context mContext;
+    private Map<String, Integer> mIcons;
     private Map<String, String> mAirplaneNameToAssetName;
 
-    public AirplaneBitmapProvider() {
+    public AirplaneBitmapProvider(Context context) {
+        mContext = context;
         loadNameMapping();
         try {
             loadAssets(R.drawable.class);
@@ -62,27 +74,57 @@ public class AirplaneBitmapProvider {
     }
 
     private void loadAssets(Class<?> clazz) throws IllegalAccessException {
-        mIcons = new HashMap<String, BitmapDescriptor>();
+        mIcons = new HashMap<String, Integer>();
         Field[] fields = clazz.getDeclaredFields();
         for (Field field : fields) {
             if (field.getName().startsWith(DRAWABLE_PREFIX)) {
-
-                mIcons.put(field.getName().substring(DRAWABLE_PREFIX.length()), BitmapDescriptorFactory.fromResource(field.getInt(clazz)));
+                mIcons.put(field.getName().substring(DRAWABLE_PREFIX.length()), field.getInt(clazz));
             }
         }
     }
 
-    public BitmapDescriptor getAsset(Flight flight) {
-        BitmapDescriptor descriptor = null;
+    public BitmapDescriptor getAsset(Flight flight, boolean selected) {
+        Integer drawableId = null;
         for (Map.Entry<String, String> entry : mAirplaneNameToAssetName.entrySet()) {
             if (flight.getAircraftName().startsWith(entry.getKey())) {
-                descriptor = mIcons.get(entry.getValue());
+                drawableId = mIcons.get(entry.getValue());
             }
         }
-        if (descriptor == null) {
+        if (drawableId == null) {
             Log.w("AirplaneBitmapProvider", "Coulnd't find icon for " + flight.getAircraftName() + " !");
-            descriptor = mIcons.get("airplane");
+            drawableId = mIcons.get("airplane");
         }
+        Drawable drawable = mContext.getResources().getDrawable(drawableId);
+
+        Users.User user = flight.getUser();
+        int color = mContext.getResources().getColor(R.color.orange_color);
+        if (user.getRole() == Users.User.Role.ADMIN)
+            color = mContext.getResources().getColor(R.color.admin_color);
+        else if (user.getRole() == Users.User.Role.TESTER)
+            color = mContext.getResources().getColor(R.color.tester_color);
+        if (user.getRank() != null && user.getRank() == 1)
+            color = mContext.getResources().getColor(R.color.gold_color);
+
+        Flight.FlightData data = flight.getCurrentData();
+        float shadowDistance = 0.04f;
+        if (data != null) {
+            //shadowDistance = (float) (Math.min(data.altitude, 50000) / 100000.0); // When matthieu visits ISS
+        }
+        int widthOffset = (int) (drawable.getIntrinsicWidth() * shadowDistance);
+        int heightOffset = (int) (drawable.getIntrinsicHeight() * shadowDistance);
+
+        int shadowColor = selected ? Color.parseColor("#88ffffff") : Color.parseColor("#88000000");
+
+        Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth() + widthOffset, drawable.getIntrinsicHeight() + heightOffset, Bitmap.Config.ARGB_4444);
+        Canvas canvas = new Canvas(bitmap);
+        drawable.setBounds(0, 0, canvas.getWidth() - widthOffset, canvas.getHeight() - heightOffset);
+        drawable.setColorFilter(shadowColor, PorterDuff.Mode.SRC_IN);
+        drawable.draw(canvas);
+        drawable.setColorFilter(color, PorterDuff.Mode.SRC_IN);
+        drawable.setBounds(widthOffset, heightOffset, canvas.getWidth(), canvas.getHeight());
+        drawable.draw(canvas);
+
+        BitmapDescriptor descriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
         return descriptor;
     }
 }
