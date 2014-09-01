@@ -29,7 +29,7 @@ import java.util.List;
  */
 public class Flight {
     public static double METERS_TO_NAUTICAL_MILES = 0.000539957;
-    public static long FULL_FLIGHT_MIN_DELAY = 2 * 3600; // MS
+    public static long FULL_FLIGHT_MIN_DELAY = 2 * 60 * 1000; // MS
     private String mAircraftName;
     private String mCallSign;
     private String mDisplayName;
@@ -109,9 +109,9 @@ public class Flight {
 
     // Retrieves the full flight from the server
     public void pullFullFlight() {
-        Log.d("Flight", "Pulling full flight...");
         if (TimeProvider.getTime() - mLastFullFlightPulledTime < FULL_FLIGHT_MIN_DELAY)
             return;
+        Log.d("Flight", "Pulling full flight...");
         mLastFullFlightPulledTime = TimeProvider.getTime();
         JSONArray array = Webservices.getJSON(APIConstants.APICalls.FLIGHT_DETAILS, "{\"FlightID\":\"" + mFlightID + "\"}");
         if (array == null)

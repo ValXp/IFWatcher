@@ -25,6 +25,7 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
 import com.valxp.app.infiniteflightwatcher.adapters.MainListAdapter;
 import com.valxp.app.infiniteflightwatcher.model.Fleet;
@@ -205,6 +206,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
         mRegions.draw(mMap, mClusterMode);
 
+        LatLngBounds bounds = mMap.getProjection().getVisibleRegion().latLngBounds;
+
         for (Map.Entry<Users.User, Flight> flightEntry : mFleet.getFleet().entrySet()) {
             Flight flight = flightEntry.getValue();
 
@@ -230,12 +233,17 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 if (position.equals(data.position)) {
                     flight.removeAproxTrail();
                 }
-                // Marker update/creation
-                if (lastMarker != null) {
-                    lastMarker.setPosition(position);
-                    lastMarker.setRotation(data.bearing.floatValue());
-                } else {
-                    flight.createMarker(mMap, mBitmapProvider);
+
+                if (bounds.contains(position) || flight == selectedFlight) {
+                    // Marker update/creation
+                    if (lastMarker != null) {
+                        lastMarker.setPosition(position);
+                        lastMarker.setRotation(data.bearing.floatValue());
+                    } else {
+                        flight.createMarker(mMap, mBitmapProvider);
+                    }
+                } else if (lastMarker != null) {
+                    flight.removeMarker();
                 }
             }
         }
@@ -248,6 +256,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         // Updating selected marker
         if (selectedFlight != null && mLastVisibleMarker != null) {
             synchronized (selectedFlight) {
+                selectedFlight.setNeedsUpdate(true);
                 LongSparseArray<Flight.FlightData> dataHistory = selectedFlight.getFlightHistory();
                 Flight.FlightData data = dataHistory.valueAt(dataHistory.size() - 1);
                 // Only update that stuff once in a while
