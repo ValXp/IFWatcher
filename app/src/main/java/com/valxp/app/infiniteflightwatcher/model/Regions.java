@@ -3,9 +3,6 @@ package com.valxp.app.infiniteflightwatcher.model;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.drawable.Drawable;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -21,9 +18,9 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
-import com.google.android.gms.maps.model.Polyline;
 import com.google.maps.android.SphericalUtil;
 import com.valxp.app.infiniteflightwatcher.R;
+import com.valxp.app.infiniteflightwatcher.TimeProvider;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -34,7 +31,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -42,7 +39,9 @@ import java.util.Map;
  */
 public class Regions extends ArrayList<Regions.Region> {
     public static int TEXT_SIZE = 30;
+    public static long METAR_UPDATE_TRESHOLD_MS = 1000 * 1800; // Refresh every 30 minutes
     private Context mContext;
+    private Long mLastMETARUpdate = null;
 
     public Regions(Context ctx) {
         mContext = ctx;
@@ -58,6 +57,8 @@ public class Regions extends ArrayList<Regions.Region> {
             for (int i = 0; i < array.length(); ++i) {
                 add(new Region(array.getJSONObject(i)));
             }
+
+            updateMETAR();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (JSONException e) {
@@ -66,38 +67,54 @@ public class Regions extends ArrayList<Regions.Region> {
     }
 
     public void updateCount(Fleet fleet) {
-        for (Regions.Region region : this) {
+        for (Region region : this) {
             region.updateCount(fleet);
         }
     }
 
     public void draw(GoogleMap map, boolean cluster) {
-        for (Regions.Region region : this) {
+        for (Region region : this) {
             region.draw(map, cluster);
         }
     }
 
     public void onMapClick(GoogleMap map, LatLng loc) {
-        for (Regions.Region region : this) {
+        for (Region region : this) {
             region.onMapClick(map, loc);
         }
     }
 
     public void onMarkerClick(GoogleMap map, Marker marker) {
-        for (Regions.Region region : this) {
+        for (Region region : this) {
             region.onMarkerClick(map, marker);
         }
     }
 
     public Region regionContainingPoint(LatLng position) {
-        for (Regions.Region region : this) {
+        for (Region region : this) {
             if (region.contains(position))
                 return region;
         }
         return null;
     }
 
+    public void updateMETAR() {
+        if (mLastMETARUpdate != null &&
+            TimeProvider.getTime() - mLastMETARUpdate < METAR_UPDATE_TRESHOLD_MS)
+            return;
+        mLastMETARUpdate = TimeProvider.getTime();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (Region region : Regions.this) {
+                    region.updateMetar();
+                }
+            }
+        }).start();
+    }
+
     public class Region {
+        private HashMap<String, Metar> mMetar = null;
         private LatLng mTopLeft, mTopRight, mBottomRight, mBottomLeft;
         private LatLngBounds bounds;
         private String mName;
@@ -114,6 +131,12 @@ public class Regions extends ArrayList<Regions.Region> {
             bounds = new LatLngBounds(mBottomLeft, mTopRight);
             mName = object.getString("Name");
             mLastCount = -1;
+        }
+
+        private void updateMetar() {
+            Log.d("Region", "Retrieving METAR for " + getName() + " ...");
+            mMetar = Metar.getMetarInBounds(mTopLeft, mTopRight, mBottomRight, mBottomLeft);
+            Log.d("Region", "Done Retrieving METAR for " + getName() + "! Found " + (mMetar == null ? "(null)" : mMetar.size()) + " entries!");
         }
 
         public void updateCount(Fleet fleet) {
@@ -181,6 +204,21 @@ public class Regions extends ArrayList<Regions.Region> {
             }
         }
 
+        public Metar getWindiest() {
+            if (mMetar == null)
+                return null;
+            Metar windiest = null;
+            for (Map.Entry<String, Metar> entry : mMetar.entrySet()) {
+                Metar metar = entry.getValue();
+                if (windiest == null)
+                    windiest = metar;
+                else if (!(metar.getWindGust() < windiest.getWindGust()) && metar.getWindSpeed() > windiest.getWindSpeed()) {
+                    windiest = metar;
+                }
+            }
+            return windiest;
+        }
+
         public boolean contains(LatLng position) {
             return bounds.contains(position);
         }
@@ -227,5 +265,6 @@ public class Regions extends ArrayList<Regions.Region> {
         public int getPlayerCount() {
             return mCount;
         }
+
     }
 }
