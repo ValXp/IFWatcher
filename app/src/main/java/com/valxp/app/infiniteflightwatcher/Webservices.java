@@ -1,7 +1,11 @@
 package com.valxp.app.infiniteflightwatcher;
 
+import android.util.Log;
+
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -23,8 +27,28 @@ public class Webservices {
         return getJSON(call, null);
     }
 
-    public static JSONArray getJSON(APIConstants.APICalls call, String data) {
-        InputStream stream = fetchJson(call, data);
+    public static JSONArray getJSON(APIConstants.APICalls call, String post) {
+        try {
+            return new JSONArray(connectionToString(fetch(call, null, post)));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    public static XmlPullParser getXML(APIConstants.APICalls call, String get, String post) {
+        try {
+            XmlPullParser parser = XmlPullParserFactory.newInstance().newPullParser();
+            parser.setInput(fetch(call, get, post), null);
+            return parser;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+
+    private static String connectionToString(InputStream stream) {
         if (stream == null)
             return null;
         BufferedReader streamReader = null;
@@ -41,24 +65,19 @@ public class Webservices {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        try {
-            return new JSONArray(strBuilder.toString());
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-        return null;
+        return strBuilder.toString();
     }
 
-    private static InputStream fetchJson(APIConstants.APICalls call, String request) {
+    private static InputStream fetch(APIConstants.APICalls call, String get, String post) {
         URL url = null;
+        String request = call.toString() + (get == null ? "" : get);
         try {
-            url = new URL(call.toString());
+            url = new URL(request);
         } catch (MalformedURLException e) {
             e.printStackTrace();
         }
         try {
-            if (request == null) {
+            if (post == null) {
                 return url.openStream();
             } else {
                 URLConnection connection = url.openConnection();
@@ -66,7 +85,7 @@ public class Webservices {
                 connection.setDoInput(true);
 
                 OutputStreamWriter writer = new OutputStreamWriter(connection.getOutputStream());
-                writer.write(request);
+                writer.write(post);
                 writer.flush();
 
                 return connection.getInputStream();
@@ -76,4 +95,5 @@ public class Webservices {
             return null;
         }
     }
+
 }

@@ -15,6 +15,7 @@ import android.widget.TextView;
 import com.valxp.app.infiniteflightwatcher.R;
 import com.valxp.app.infiniteflightwatcher.model.Fleet;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
+import com.valxp.app.infiniteflightwatcher.model.Metar;
 import com.valxp.app.infiniteflightwatcher.model.Regions;
 import com.valxp.app.infiniteflightwatcher.model.Users;
 
@@ -22,6 +23,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -159,6 +161,8 @@ public class MainListAdapter implements ExpandableListAdapter {
         ImageView image = (ImageView) view.findViewById(R.id.item_image);
         TextView name = (TextView) view.findViewById(R.id.item_name);
         TextView count = (TextView) view.findViewById(R.id.item_count);
+        TextView wind = (TextView) view.findViewById(R.id.wind);
+
         name.setShadowLayer(0, 0, 0, 0);
         image.setVisibility(View.GONE);
         view.setTag(null);
@@ -172,7 +176,14 @@ public class MainListAdapter implements ExpandableListAdapter {
             name.setTextColor(mContext.getResources().getColor(color));
             count.setTextColor(mContext.getResources().getColor(color));
             view.setTag(region);
+            Metar metar = region.getWindiest();
+            if (metar != null)
+                wind.setText(metar.getStationID() + " Wind speed: " + metar.getWindSpeed() + "kts" + " gust: " + metar.getWindGust() + "kts");
+             else
+                wind.setText("Loading...");
+            wind.setVisibility(View.VISIBLE);
         } else if (i == USERS_INDEX && item != null) {
+            wind.setVisibility(View.GONE);
             Users.User user = (Users.User) item;
             int color = android.R.color.black;
             int bgColor = android.R.color.white;
@@ -212,7 +223,7 @@ public class MainListAdapter implements ExpandableListAdapter {
                 if (region == null) {
                     text = "Lost";
                 } else {
-                    text = "In " + region.getName();
+                    text = region.getName();
                 }
             }
             count.setText(text);
