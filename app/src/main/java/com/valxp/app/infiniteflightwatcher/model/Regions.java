@@ -38,8 +38,7 @@ import java.util.Map;
  * Created by ValXp on 6/26/14.
  */
 public class Regions extends ArrayList<Regions.Region> {
-    public static int TEXT_SIZE = 30;
-    public static long METAR_UPDATE_TRESHOLD_MS = 1000 * 1800; // Refresh every 30 minutes
+    public static long METAR_UPDATE_TRESHOLD_MS = 1000 * 60 * 15; // Refresh every 15 minutes
     private Context mContext;
     private Long mLastMETARUpdate = null;
 
@@ -122,6 +121,7 @@ public class Regions extends ArrayList<Regions.Region> {
         private Marker mMarker;
         private int mCount;
         private int mLastCount;
+        private boolean mMetarDrawn = true;
 
         public Region(JSONObject object) throws JSONException {
             mBottomLeft = new LatLng(object.getDouble("LatMin"), object.getDouble("LonMin"));
@@ -135,7 +135,17 @@ public class Regions extends ArrayList<Regions.Region> {
 
         private void updateMetar() {
             Log.d("Region", "Retrieving METAR for " + getName() + " ...");
-            mMetar = Metar.getMetarInBounds(mTopLeft, mTopRight, mBottomRight, mBottomLeft);
+            while (true) {
+                mMetar = Metar.getMetarInBounds(mTopLeft, mTopRight, mBottomRight, mBottomLeft);
+                if (mMetar != null)
+                    break;
+                try {
+                    Log.w("METAR", "Failed retrieving METAR for " + getName() + " retrying later");
+                    Thread.sleep(10000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
             Log.d("Region", "Done Retrieving METAR for " + getName() + "! Found " + (mMetar == null ? "(null)" : mMetar.size()) + " entries!");
         }
 
@@ -157,8 +167,20 @@ public class Regions extends ArrayList<Regions.Region> {
                 mLine.setFillColor(0x05000000);
             }
         }
-
         public void draw(GoogleMap map, boolean cluster) {
+            if (!mMetarDrawn && mMetar != null) {
+                for (Map.Entry<String, Metar> entry : mMetar.entrySet()) {
+                    Metar metar = entry.getValue();
+                    if (metar.getPosition() == null || metar.getWindDir() == null || metar.getRaw() == null)
+                        continue;
+                    map.addMarker(new MarkerOptions()
+                                    .position(metar.getPosition())
+                                    .rotation(metar.getWindDir().floatValue())
+                                    .title(metar.getRaw())
+                    );
+                }
+                mMetarDrawn = true;
+            }
             if (mLine == null) {
                 mLine = map.addPolygon(new PolygonOptions()
                         .add(getTopLeft())
@@ -169,7 +191,7 @@ public class Regions extends ArrayList<Regions.Region> {
                         .strokeWidth(4));
             }
             if (cluster) {
-                mLine.setFillColor(mCount > 0 ? 0xFFE0FFE0 : 0xFFFFFFFF);
+                mLine.setFillColor(0x0F000000);
                 if (mLastCount != mCount || mMarker == null) {
                     mLastCount = mCount;
                     if (mMarker != null)
@@ -182,15 +204,8 @@ public class Regions extends ArrayList<Regions.Region> {
                     t.layout(0, 0, bmp.getWidth(), bmp.getHeight());
                     Canvas canvas = new Canvas(bmp);
                     t.draw(canvas);
-//                    canvas.drawARGB(0x00, 0xff, 0xff, 0xff);
-//                    Paint p = new Paint();
-//                    p.setColor(Color.BLACK);
-//                    p.setStyle(Paint.Style.FILL);
-//                    p.setLinearText(true);
-//                    p.setTextSize(50);
-//                    canvas.drawText(text, 0, 36, p);
                     MarkerOptions options = new MarkerOptions()
-                            .position(SphericalUtil.interpolate(mBottomLeft, mTopRight, .5))
+                            .position(SphericalUtil.interpolate(mTopLeft, mTopRight, .5))
                             .anchor(.5f, .5f)
                             .icon(BitmapDescriptorFactory.fromBitmap(bmp));
                     mMarker = map.addMarker(options);

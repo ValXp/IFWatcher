@@ -64,7 +64,8 @@ public class StrokedPolyLine {
     private void construct(GoogleMap map, double speed, double altitude, LatLng first, LatLng second) {
         PolylineOptions path = new PolylineOptions();
         path.zIndex(0);
-        path.geodesic(true);
+        // Should be cheaper to draw
+        path.geodesic(false);
 
         mStroke = map.addPolyline(path);
 

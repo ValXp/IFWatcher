@@ -1,6 +1,8 @@
 package com.valxp.app.infiniteflightwatcher.model;
 
 
+import android.util.Log;
+
 import com.google.android.gms.maps.model.LatLng;
 import com.valxp.app.infiniteflightwatcher.APIConstants;
 import com.valxp.app.infiniteflightwatcher.Webservices;
@@ -58,14 +60,13 @@ public class Metar {
         int eventType = parser.getEventType();
         while (eventType != XmlPullParser.END_DOCUMENT) {
             if (eventType == XmlPullParser.END_TAG && parser.getName().equals("METAR")) {
-                return;
+                break;
             }
             if (eventType == XmlPullParser.START_TAG) {
-                String text = null;
+                String text;
                 try {
                     text = parser.nextText();
                 } catch (Exception e) {
-                    eventType = parser.next();
                     continue;
                 }
                 String name = parser.getName();
@@ -91,8 +92,9 @@ public class Metar {
             }
             eventType = parser.next();
         }
-        if (lat != null && lng != null)
+        if (lat != null && lng != null) {
             mPosition = new LatLng(lat, lng);
+        }
     }
 
     private Double parseOrNil(String text) {
@@ -102,6 +104,20 @@ public class Metar {
             e.printStackTrace();
             return null;
         }
+    }
+
+    @Override
+    public String toString() {
+        return "Metar{" +
+                "mRaw='" + mRaw + '\'' +
+                ", mStationID='" + mStationID + '\'' +
+                ", mPosition=" + mPosition +
+                ", mTemperature=" + mTemperature +
+                ", mWindDir=" + mWindDir +
+                ", mWindSpeed=" + mWindSpeed +
+                ", mWindGust=" + mWindGust +
+                ", mVisibility=" + mVisibility +
+                '}';
     }
 
     public String getRaw() {

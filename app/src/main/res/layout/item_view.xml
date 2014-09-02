@@ -3,10 +3,10 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:padding="5dp"
     >
 
     <TextView
-        android:layout_margin="10dp"
         android:id="@+id/item_name"
         android:textColor="@android:color/background_dark"
         android:textSize="17sp"
@@ -16,34 +16,25 @@
         android:layout_alignParentLeft="true"
         />
 
-    <ImageView
+    <TextView
+        android:layout_marginTop="5dp"
+        android:textSize="14sp"
+        android:textColor="@android:color/black"
         android:layout_below="@+id/item_name"
-        android:id="@+id/item_image"
+        android:id="@+id/item_subname"
         android:layout_width="wrap_content"
-        android:layout_height="45dp"
+        android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
-        android:alpha=".8"
-        android:scaleType="center"
         />
 
     <TextView
-        android:layout_margin="10dp"
         android:textSize="17sp"
         android:id="@+id/item_count"
         android:textColor="@android:color/background_dark"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentRight="true"
+        android:layout_centerVertical="true"
         />
 
-    <TextView
-        android:layout_marginLeft="10dp"
-        android:layout_below="@+id/item_name"
-        android:layout_alignParentLeft="true"
-        android:textSize="14sp"
-        android:id="@+id/wind"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:textColor="@android:color/background_dark"
-        />
 </RelativeLayout>
