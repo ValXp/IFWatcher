@@ -1,6 +1,7 @@
 package com.valxp.app.infiniteflightwatcher.model;
 
 import com.valxp.app.infiniteflightwatcher.APIConstants;
+import com.valxp.app.infiniteflightwatcher.TimeProvider;
 import com.valxp.app.infiniteflightwatcher.Webservices;
 
 import org.json.JSONArray;
@@ -14,6 +15,7 @@ import java.util.Map;
  * Created by ValXp on 6/26/14.
  */
 public class Users {
+    public static long REFRESH_THRESHOLD = 1000 * 60;
     private Map<String, User> mUsers; // Map of id to user
 
     public Users() {
@@ -34,7 +36,7 @@ public class Users {
         if (id == null) {
             id = "";
             for (Map.Entry<String, User> pair : mUsers.entrySet()) {
-                if (!pair.getValue().mIsSet || force)
+                if (pair.getValue().needsRefresh() || force)
                     id += "\""+pair.getKey() + "\",";
             }
         } else if (mUsers.get(id) == null || mUsers.get(id).mIsSet && !force){
@@ -112,6 +114,8 @@ public class Users {
         private Flight mCurrentFlight;
 
         private boolean mIsSet;
+        private boolean mNeedsRefresh = false;
+        private long mLastRefresh = 0;
 
         public enum Role {
             UNKNOWN(0, "Unknown"),
@@ -163,6 +167,8 @@ public class Users {
             mRole = role == null ? Role.fromValue(0) : Role.fromValue(role.intValue());
 
             mCurrentFlight = null;
+            mNeedsRefresh = false;
+            mLastRefresh = TimeProvider.getTime();
             mIsSet = true;
         }
 
@@ -178,10 +184,15 @@ public class Users {
             this.mViolations = other.mViolations;
             this.mRole = other.mRole;
             this.mIsSet = true;
+            this.mNeedsRefresh = false;
+            this.mLastRefresh = TimeProvider.getTime();
         }
 
         public void markForUpdate() {
-            mIsSet = false;
+            mNeedsRefresh = true;
+        }
+        public boolean needsRefresh() {
+            return !mIsSet || (mNeedsRefresh && TimeProvider.getTime() - mLastRefresh > REFRESH_THRESHOLD);
         }
 
         public String getId() {

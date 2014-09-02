@@ -31,9 +31,11 @@ import com.valxp.app.infiniteflightwatcher.adapters.MainListAdapter;
 import com.valxp.app.infiniteflightwatcher.model.Fleet;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
 import com.valxp.app.infiniteflightwatcher.model.Regions;
+import com.valxp.app.infiniteflightwatcher.model.Server;
 import com.valxp.app.infiniteflightwatcher.model.Users;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 
 public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, GoogleMap.OnCameraChangeListener, ExpandableListView.OnChildClickListener, TouchableMapFragment.TouchableWrapper.UpdateMapAfterUserInteraction, GoogleMap.InfoWindowAdapter {
@@ -41,7 +43,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     public static final long FLIGHT_MAX_LIFETIME_SECONDS = 60 * 3;
     public static final long MAX_INTERPOLATE_DURATION_MS = FLIGHT_MAX_LIFETIME_SECONDS * 1000;
     public static final long MINIMUM_INTERPOLATION_SPEED_KTS = 40;
-    public static final int REFRESH_UI_MS = 1000 / 10;
+    public static final int REFRESH_UI_MS = 1000 / 20;
     public static final int REFRESH_API_MS = 8 * 1000;
     public static final int REFRESH_INFO_MS = 2 * 1000;
     public static final double KTS_TO_M_PER_S = .52;
@@ -51,6 +53,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
     private UpdateThread mUpdateThread;
     private Fleet mFleet;
+    private HashMap<String, Server> mServers;
     private Handler mUIRefreshHandler;
     private long mLastTimeInfoUpdated;
     private TextView mNobodyPlayingText;
@@ -110,7 +113,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         });
         mRegions = new Regions(this);
 
-        mListAdapter = new MainListAdapter(this, mFleet, mRegions);
+        mListAdapter = new MainListAdapter(this, mFleet, mRegions, mServers);
         mExpandableList.setOnChildClickListener(this);
         mExpandableList.setAdapter(mListAdapter);
         mDrawer.setDrawerListener(new DrawerLayout.DrawerListener() {
@@ -162,6 +165,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                     synchronized (mFleet) {
                         updateMap();
                     }
+                    mRegions.updateMETAR();
                     if (!mClusterMode && mUIRefreshHandler != null)
                         mUIRefreshHandler.postDelayed(this, mDrawRate);
                 } catch (Exception e) {
@@ -256,11 +260,12 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         // Updating selected marker
         if (selectedFlight != null && mLastVisibleMarker != null) {
             synchronized (selectedFlight) {
-                selectedFlight.setNeedsUpdate(true);
                 LongSparseArray<Flight.FlightData> dataHistory = selectedFlight.getFlightHistory();
                 Flight.FlightData data = dataHistory.valueAt(dataHistory.size() - 1);
                 // Only update that stuff once in a while
                 if (updateInfo) {
+                    selectedFlight.setNeedsUpdate(true);
+                    selectedFlight.getUser().markForUpdate();
                     if (!showInfoPane(selectedFlight))
                         mLastTimeInfoUpdated += REFRESH_INFO_MS;
                     if (mInfoPane.isFollowing())
@@ -442,15 +447,18 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
     private void refreshList() {
         Log.d("MapsActivity", "Refreshing list");
-        boolean regionsExpanded = mExpandableList.isGroupExpanded(0);
-        boolean usersExpanded = mExpandableList.isGroupExpanded(1);
+        int groupCount = mListAdapter.getGroupCount();
+        ArrayList<Boolean> expandedGroups = new ArrayList<Boolean>();
+        for (int i = 0; i < groupCount; ++i) {
+            expandedGroups.add(mExpandableList.isGroupExpanded(i));
+        }
         int pos = mExpandableList.getFirstVisiblePosition();
-        mListAdapter = new MainListAdapter(this, mFleet, mRegions);
+        mListAdapter = new MainListAdapter(this, mFleet, mRegions, mServers);
         mExpandableList.setAdapter(mListAdapter);
-        if (regionsExpanded)
-            mExpandableList.expandGroup(0);
-        if (usersExpanded)
-            mExpandableList.expandGroup(1);
+        for (int i = 0; i < groupCount; ++i) {
+            if (expandedGroups.get(i))
+                mExpandableList.expandGroup(i);
+        }
         mExpandableList.setSelection(pos);
         mExpandableList.setOnChildClickListener(this);
     }
@@ -460,33 +468,44 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         Object tag = view.getTag();
         if (tag == null)
             return false;
-        if (i == MainListAdapter.REGIONS_INDEX) {
-            Regions.Region region = (Regions.Region) tag;
-            mDrawer.closeDrawers();
-            region.zoomOnRegion(mMap);
-            unselectFlights();
-        } else if (i == MainListAdapter.USERS_INDEX) {
-            final Flight flight = (Flight) tag;
-            mDrawer.closeDrawers();
-            Regions.Region region = mRegions.regionContainingPoint(flight.getAproxLocation());
-            if (region != null && mClusterMode) {
-                region.showInside();
-                region.zoomOnRegion(mMap, new GoogleMap.CancelableCallback() {
-                    @Override
-                    public void onFinish() {
-                        flight.createMarker(mMap, mBitmapProvider);
-                        selectMarkerFromUI(flight);
-                    }
+        Regions.Region region;
+        switch (i) {
+            case MainListAdapter.REGIONS_INDEX:
+                region = (Regions.Region) tag;
+                mDrawer.closeDrawers();
+                region.zoomOnRegion(mMap);
+                unselectFlights();
+                break;
+            case MainListAdapter.USERS_INDEX:
+                final Flight flight = (Flight) tag;
+                mDrawer.closeDrawers();
+                region = mRegions.regionContainingPoint(flight.getAproxLocation());
+                if (region != null && mClusterMode) {
+                    region.showInside();
+                    region.zoomOnRegion(mMap, new GoogleMap.CancelableCallback() {
+                        @Override
+                        public void onFinish() {
+                            flight.createMarker(mMap, mBitmapProvider);
+                            selectMarkerFromUI(flight);
+                        }
 
-                    @Override
-                    public void onCancel() {
-                    }
-                });
+                        @Override
+                        public void onCancel() {
+                        }
+                    });
 
-            } else {
-                flight.createMarker(mMap, mBitmapProvider);
-                selectMarkerFromUI(flight);
-            }
+                } else {
+                    flight.createMarker(mMap, mBitmapProvider);
+                    selectMarkerFromUI(flight);
+                }
+                break;
+            case MainListAdapter.SERVERS_INDEX:
+                mDrawer.closeDrawers();
+                mFleet.selectServer((Server)tag);
+                if (mUpdateThread != null)
+                    mUpdateThread.requestWake();
+                refreshList();
+                break;
         }
         return true;
     }
@@ -518,6 +537,12 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                         mProgress.setVisibility(View.VISIBLE);
                     }
                 });
+
+                mServers = Server.getServers(mServers);
+                if (mFleet.getSelectedServer() == null && mServers != null && mServers.size() > 0) {
+                    mFleet.selectServer(mServers.entrySet().iterator().next().getValue());
+                }
+
                 final Runnable toRunOnUI = mFleet.updateFleet(FLIGHT_MAX_LIFETIME_SECONDS);
                 mRegions.updateCount(mFleet);
                 runOnUiThread(new Runnable() {

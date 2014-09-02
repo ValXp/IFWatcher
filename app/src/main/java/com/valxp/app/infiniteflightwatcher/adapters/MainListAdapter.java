@@ -17,6 +17,7 @@ import com.valxp.app.infiniteflightwatcher.model.Fleet;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
 import com.valxp.app.infiniteflightwatcher.model.Metar;
 import com.valxp.app.infiniteflightwatcher.model.Regions;
+import com.valxp.app.infiniteflightwatcher.model.Server;
 import com.valxp.app.infiniteflightwatcher.model.Users;
 
 import java.lang.reflect.Field;
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -33,19 +35,23 @@ import java.util.Map;
 public class MainListAdapter implements ExpandableListAdapter {
     public static final int REGIONS_INDEX = 0;
     public static final int USERS_INDEX = 1;
+    public static final int SERVERS_INDEX = 2;
     private Context mContext;
     private Regions mRegions;
     private List<Regions.Region> mRegionList;
     private List<Users.User> mUserList;
+    private List<Server> mServerList;
+    private Fleet mFleet;
 
 
-    public MainListAdapter(Context context, Fleet fleet, Regions regions) {
+    public MainListAdapter(Context context, Fleet fleet, Regions regions, HashMap<String, Server> servers) {
         mContext = context;
-
         mRegions = regions;
+        mFleet = fleet;
 
-        mRegionList = new ArrayList<Regions.Region>();
-        mRegionList.addAll(mRegions);
+        synchronized (regions) {
+            mRegionList = new ArrayList<Regions.Region>(regions);
+        }
         Collections.sort(mRegionList, new Comparator<Regions.Region>() {
             @Override
             public int compare(Regions.Region region, Regions.Region region2) {
@@ -53,19 +59,21 @@ public class MainListAdapter implements ExpandableListAdapter {
             }
         });
 
-        mUserList = new ArrayList<Users.User>();
-        for (Map.Entry<String, Users.User> entry : fleet.getUsers().getUsers().entrySet()) {
-            Users.User user = entry.getValue();
-            if (user.getCurrentFlight() != null) {
-                mUserList.add(user);
-            }
+        synchronized (fleet) {
+            mUserList = new ArrayList<Users.User>(fleet.getUsers().getUsers().values());
         }
-        Log.d("MainListAdapter", "Userlist size : " + mUserList.size());
+        for (Iterator<Users.User> it = mUserList.iterator(); it.hasNext();) {
+            if (it.next().getCurrentFlight() == null)
+                it.remove();
+        }
         Collections.sort(mUserList, new Comparator<Users.User>() {
             @Override
             public int compare(Users.User user, Users.User user2) {
-                Regions.Region region = mRegions.regionContainingPoint(user.getCurrentFlight().getAproxLocation());
-                Regions.Region region2 = mRegions.regionContainingPoint(user2.getCurrentFlight().getAproxLocation());
+                Flight flight = user.getCurrentFlight();
+                Flight flight2 = user2.getCurrentFlight();
+
+                Regions.Region region = flight == null ? null : mRegions.regionContainingPoint(flight.getAproxLocation());
+                Regions.Region region2 = flight2 == null ? null : mRegions.regionContainingPoint(flight2.getAproxLocation());
                 if (region == null)
                     return -1;
                 if (region2 == null)
@@ -73,7 +81,28 @@ public class MainListAdapter implements ExpandableListAdapter {
                 return region2.hashCode() - region.hashCode();
             }
         });
-        Log.d("MainListAdapter", "After sort Userlist size : " + mUserList.size());
+
+        if (servers != null) {
+            synchronized (servers) {
+                mServerList = new ArrayList<Server>(servers.values());
+            }
+            Collections.sort(mServerList, new Comparator<Server>() {
+                @Override
+                public int compare(Server server, Server server2) {
+                    String name;
+                    String name2;
+                    synchronized (server) {
+                        name = server.getName();
+                    }
+                    synchronized (server2) {
+                        name2 = server2.getName();
+                    }
+                    return name.compareTo(name2);
+                }
+            });
+        } else {
+            mServerList = new ArrayList<Server>();
+        }
     }
 
     @Override
@@ -88,33 +117,33 @@ public class MainListAdapter implements ExpandableListAdapter {
 
     @Override
     public int getGroupCount() {
-        return 2;
+        return (mRegionList == null ? 0 : 1) + (mUserList == null ? 0 : 1) + (mServerList == null ? 0 : 1);
     }
 
     @Override
     public int getChildrenCount(int i) {
-        if (i == REGIONS_INDEX)
-            return mRegionList.size();
-        if (i == USERS_INDEX)
-            return mUserList.size();
-        return 0;
+        List<Object> list = (List<Object>) getGroup(i);
+        return list != null ? list.size() : 0;
     }
 
     @Override
     public Object getGroup(int i) {
-        if (i == REGIONS_INDEX)
-            return mRegionList;
-        if (i == USERS_INDEX)
-            return mUserList;
-        return null;
+        switch (i) {
+            case REGIONS_INDEX:
+                return mRegionList;
+            case USERS_INDEX:
+                return mUserList;
+            case SERVERS_INDEX:
+                return mServerList;
+            default:
+                return null;
+        }
     }
 
     @Override
     public Object getChild(int i, int i2) {
         List<Object> list = (List<Object>) getGroup(i);
-        if (list != null)
-            return list.get(i2);
-        return null;
+        return list != null ? list.get(i2) : null;
     }
 
     @Override
@@ -141,12 +170,19 @@ public class MainListAdapter implements ExpandableListAdapter {
         TextView name = (TextView) view.findViewById(R.id.group_name);
         TextView count = (TextView) view.findViewById(R.id.group_count);
 
-        if (i == REGIONS_INDEX) {
-            name.setText("Regions");
-            count.setText("");
-        } else if (i == USERS_INDEX) {
-            name.setText("Users");
-            count.setText("(" + getChildrenCount(i) + ")");
+        switch (i) {
+            case REGIONS_INDEX:
+                name.setText("Regions");
+                count.setText("");
+            break;
+            case USERS_INDEX:
+                name.setText("Users");
+                count.setText("(" + getChildrenCount(i) + ")");
+            break;
+            case SERVERS_INDEX:
+                name.setText("Servers");
+                count.setText("(" + getChildrenCount(i) + ")");
+            break;
         }
 
         return view;
@@ -158,75 +194,93 @@ public class MainListAdapter implements ExpandableListAdapter {
             LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
             view = inflater.inflate(R.layout.item_view, null);
         }
-        ImageView image = (ImageView) view.findViewById(R.id.item_image);
         TextView name = (TextView) view.findViewById(R.id.item_name);
+        TextView subname = (TextView) view.findViewById(R.id.item_subname);
         TextView count = (TextView) view.findViewById(R.id.item_count);
-        TextView wind = (TextView) view.findViewById(R.id.wind);
 
         name.setShadowLayer(0, 0, 0, 0);
-        image.setVisibility(View.GONE);
+        subname.setVisibility(View.GONE);
         view.setTag(null);
 
         Object item = getChild(i, i2);
-        if (i == REGIONS_INDEX && item != null) {
-            Regions.Region region = (Regions.Region)item;
-            name.setText(region.getName());
-            count.setText("(" + region.getPlayerCount() + ")");
-            int color = region.getPlayerCount() == 0 ? android.R.color.darker_gray : android.R.color.black;
-            name.setTextColor(mContext.getResources().getColor(color));
-            count.setTextColor(mContext.getResources().getColor(color));
-            view.setTag(region);
-            Metar metar = region.getWindiest();
-            if (metar != null)
-                wind.setText(metar.getStationID() + " Wind speed: " + metar.getWindSpeed() + "kts" + " gust: " + metar.getWindGust() + "kts");
-             else
-                wind.setText("Loading...");
-            wind.setVisibility(View.VISIBLE);
-        } else if (i == USERS_INDEX && item != null) {
-            wind.setVisibility(View.GONE);
-            Users.User user = (Users.User) item;
-            int color = android.R.color.black;
-            int bgColor = android.R.color.white;
-            switch (user.getRole()) {
-                case UNKNOWN:
-                    break;
-                case USER:
-                    color = R.color.orange_color;
-                    bgColor = android.R.color.black;
-                    break;
-                case TESTER:
-                    color = R.color.tester_color;
-                    bgColor = android.R.color.black;
-                    break;
-                case ADMIN:
-                    color = R.color.admin_color;
-                    bgColor = android.R.color.black;
-                    break;
-            }
-            if (user.getRank() == 1) {
-                color = R.color.gold_color;
-                bgColor = android.R.color.black;
-            }
-            name.setShadowLayer(3, 3, 3, mContext.getResources().getColor(bgColor));
-
-            name.setTextColor(mContext.getResources().getColor(color));
-            image.setVisibility(View.VISIBLE);
-            image.setImageDrawable(getPlaneImage(user.getCurrentFlight()));
-            count.setTextColor(mContext.getResources().getColor(android.R.color.black));
-            name.setText(user.getName());
-            String text;
-            if (user.getCurrentFlight() == null)
-                text = "Offline";
-            else {
-                view.setTag(user.getCurrentFlight());
-                Regions.Region region = mRegions.regionContainingPoint(user.getCurrentFlight().getAproxLocation());
-                if (region == null) {
-                    text = "Lost";
-                } else {
-                    text = region.getName();
+        int color;
+        Regions.Region region;
+        if (item == null)
+            return view;
+        switch (i) {
+            case REGIONS_INDEX:
+                region = (Regions.Region) item;
+                name.setText(region.getName());
+                count.setText("(" + region.getPlayerCount() + ")");
+                color = region.getPlayerCount() == 0 ? android.R.color.darker_gray : android.R.color.black;
+                name.setTextColor(mContext.getResources().getColor(color));
+                count.setTextColor(mContext.getResources().getColor(color));
+                view.setTag(region);
+                Metar metar = region.getWindiest();
+                if (metar != null)
+                    subname.setText(metar.getStationID() + " Wind speed: " + metar.getWindSpeed() + "kts" + " gust: " + metar.getWindGust() + "kts");
+                else
+                    subname.setText("Loading...");
+                subname.setVisibility(View.VISIBLE);
+            break;
+            case USERS_INDEX:
+                Users.User user = (Users.User) item;
+                color = android.R.color.black;
+                Flight flight = user.getCurrentFlight();
+                int bgColor = android.R.color.white;
+                switch (user.getRole()) {
+                    case UNKNOWN:
+                        break;
+                    case USER:
+                        color = R.color.orange_color;
+                        bgColor = android.R.color.black;
+                        break;
+                    case TESTER:
+                        color = R.color.tester_color;
+                        bgColor = android.R.color.black;
+                        break;
+                    case ADMIN:
+                        color = R.color.admin_color;
+                        bgColor = android.R.color.black;
+                        break;
                 }
-            }
-            count.setText(text);
+                if (user.getRank() == 1) {
+                    color = R.color.gold_color;
+                    bgColor = android.R.color.black;
+                }
+                name.setShadowLayer(2, 2, 2, mContext.getResources().getColor(bgColor));
+
+                name.setTextColor(mContext.getResources().getColor(color));
+                count.setTextColor(mContext.getResources().getColor(android.R.color.black));
+                name.setText(user.getName());
+                String text;
+                if (flight == null) {
+                    text = "Offline";
+                    view.setTag(null);
+                } else {
+                    subname.setVisibility(View.VISIBLE);
+                    subname.setText(flight.getAircraftName());
+                    view.setTag(user.getCurrentFlight());
+                    region = mRegions.regionContainingPoint(flight.getAproxLocation());
+                    if (region == null) {
+                        text = "Lost";
+                    } else {
+                        text = region.getName();
+                    }
+                }
+                count.setText(text);
+                break;
+            case SERVERS_INDEX:
+                Server server = (Server) item;
+                synchronized (server) {
+                    view.setTag(server);
+                    color = mFleet.getSelectedServer() == server ? R.color.orange_color : android.R.color.black;
+                    name.setTextColor(mContext.getResources().getColor(color));
+                    name.setText(server.getName());
+                    count.setTextColor(mContext.getResources().getColor(color));
+                    count.setText(server.getUserCount() + "/" + server.getMaxUsers());
+                }
+                break;
         }
         return view;
     }

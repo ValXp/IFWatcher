@@ -1,11 +1,8 @@
 package com.valxp.app.infiniteflightwatcher.model;
 
-import android.util.JsonReader;
 import android.util.Log;
-import android.util.LongSparseArray;
 
 import com.google.android.gms.maps.model.Marker;
-import com.google.android.gms.maps.model.Polyline;
 import com.valxp.app.infiniteflightwatcher.APIConstants;
 import com.valxp.app.infiniteflightwatcher.StrokedPolyLine;
 import com.valxp.app.infiniteflightwatcher.Webservices;
@@ -14,19 +11,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 
 /**
  * Created by ValXp on 5/20/14.
@@ -36,11 +25,14 @@ public class Fleet {
     private Users mUsers;
     private boolean mIsUpToDate;
     private boolean mIsUpdating = false;
+    private Server mSelectedServer;
     private List<Flight> mFlightsToRemove;
+    private boolean mCleanup = false;
 
     public Fleet() {
         mFleet = new HashMap<Users.User, Flight>();
         mFlightsToRemove = new ArrayList<Flight>();
+        mSelectedServer = null;
         mIsUpToDate = false;
         mUsers = new Users();
     }
@@ -51,10 +43,20 @@ public class Fleet {
                 return null;
             mIsUpdating = true;
         }
+        final ArrayList<Runnable> runnables = new ArrayList<Runnable>();
 
-        parseFlightList(Webservices.getJSON(APIConstants.APICalls.FLIGHTS));
+        if (mSelectedServer == null) {
+            mIsUpdating = false;
+            return null;
+        }
+        if (mCleanup) {
+            mCleanup = false;
+            runnables.add(discardOldFlights(Long.MIN_VALUE));
+        }
+        String postData = "{\"SessionID\":\"" + mSelectedServer.getId() + "\"}";
+        parseFlightList(Webservices.getJSON(APIConstants.APICalls.FLIGHTS, postData));
 
-        Runnable forUIThread = discardOldFlights(thresholdInSeconds);
+        runnables.add(discardOldFlights(thresholdInSeconds));
 
         for (Map.Entry<Users.User, Flight> data : mFleet.entrySet()) {
             Flight value = data.getValue();
@@ -68,7 +70,13 @@ public class Fleet {
 
         mIsUpToDate = true;
         mIsUpdating = false;
-        return forUIThread;
+        return new Runnable() {
+            @Override
+            public void run() {
+                for (Runnable r : runnables)
+                    r.run();
+            }
+        };
     }
 
     public Map<Users.User, Flight> getFleet() {
@@ -77,6 +85,18 @@ public class Fleet {
 
     public Users getUsers() {
         return mUsers;
+    }
+
+    public void selectServer(Server server) {
+        if (server != mSelectedServer) {
+            mCleanup = true;
+            mIsUpToDate = false;
+        }
+        mSelectedServer = server;
+    }
+
+    public Server getSelectedServer() {
+        return mSelectedServer;
     }
 
     synchronized private void parseFlightList(JSONArray array) {
@@ -168,11 +188,12 @@ public class Fleet {
             markersToRemove.add(mark);
     }
 
+
     private void removeFlight(Flight flight) {
         mFlightsToRemove.add(flight);
     }
 
     public boolean isUpToDate() {
-        return mIsUpToDate;
+        return mIsUpToDate && !mIsUpdating;
     }
 }

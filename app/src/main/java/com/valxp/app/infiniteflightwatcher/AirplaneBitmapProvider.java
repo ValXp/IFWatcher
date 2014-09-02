@@ -115,13 +115,13 @@ public class AirplaneBitmapProvider {
 
         int shadowColor = selected ? Color.parseColor("#88ffffff") : Color.parseColor("#88000000");
 
-        Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth() + widthOffset, drawable.getIntrinsicHeight() + heightOffset, Bitmap.Config.ARGB_4444);
+        Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_4444);
         Canvas canvas = new Canvas(bitmap);
-        drawable.setBounds(0, 0, canvas.getWidth() - widthOffset, canvas.getHeight() - heightOffset);
         drawable.setColorFilter(shadowColor, PorterDuff.Mode.SRC_IN);
+        drawable.setBounds(widthOffset, heightOffset, canvas.getWidth(), canvas.getHeight());
         drawable.draw(canvas);
         drawable.setColorFilter(color, PorterDuff.Mode.SRC_IN);
-        drawable.setBounds(widthOffset, heightOffset, canvas.getWidth(), canvas.getHeight());
+        drawable.setBounds(0, 0, canvas.getWidth() - widthOffset, canvas.getHeight() - heightOffset);
         drawable.draw(canvas);
 
         BitmapDescriptor descriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
