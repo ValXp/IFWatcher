@@ -99,23 +99,23 @@ public class Users {
 
 
     public static class User {
-        private String mId;
-        private Double mFlightTime;
-        private Long mLandingCount;
-        private Long mLastFlight; // Time
-        private String mName;
-        private Long mOnlineFlights;
-        private Long mRank;
-        private Long mSkills;
-        private Double mStanding; // 0 -> 0% 1 -> 100%
-        private Long mViolations;
-        private Role mRole;
+        private String mId = "";
+        private Double mFlightTime = 0d;
+        private Long mLandingCount = 0l;
+        private Long mLastFlight = 0l; // Time
+        private String mName = "";
+        private Long mOnlineFlights = 0l;
+        private Long mRank = 0l;
+        private Long mSkills = 0l;
+        private Double mStanding = 0d; // 0 -> 0% 1 -> 100%
+        private Long mViolations = 0l;
+        private Role mRole = Role.UNKNOWN;
 
-        private Flight mCurrentFlight;
+        private Flight mCurrentFlight = null;
 
-        private boolean mIsSet;
+        private boolean mIsSet = false;
         private boolean mNeedsRefresh = false;
-        private long mLastRefresh = 0;
+        private long mLastRefresh = 0l;
 
         public enum Role {
             UNKNOWN(0, "Unknown"),
@@ -164,7 +164,7 @@ public class Users {
             mId = object.getString("UserID");
             mViolations = object.getLong("Violations");
             Integer role = object.getInt("Roles");
-            mRole = role == null ? Role.fromValue(0) : Role.fromValue(role.intValue());
+            mRole = role == null ? Role.UNKNOWN : Role.fromValue(role.intValue());
 
             mCurrentFlight = null;
             mNeedsRefresh = false;
