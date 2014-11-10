@@ -97,23 +97,23 @@ public class AirplaneBitmapProvider {
         Drawable drawable = mContext.getResources().getDrawable(drawableId);
 
         Users.User user = flight.getUser();
-        int color = mContext.getResources().getColor(R.color.orange_color);
+        int color = mContext.getResources().getColor(selected ? R.color.orange_selected_color : R.color.orange_color);
         if (user.getRole() == Users.User.Role.ADMIN)
-            color = mContext.getResources().getColor(R.color.admin_color);
+            color = mContext.getResources().getColor(selected ? R.color.admin_selected_color : R.color.admin_color);
         else if (user.getRole() == Users.User.Role.TESTER)
-            color = mContext.getResources().getColor(R.color.tester_color);
+            color = mContext.getResources().getColor(selected ? R.color.tester_selected_color : R.color.tester_color);
         if (user.getRank() != null && user.getRank() == 1)
             color = mContext.getResources().getColor(R.color.gold_color);
 
         Flight.FlightData data = flight.getCurrentData();
         float shadowDistance = 0.04f;
         if (data != null) {
-            //shadowDistance = (float) (Math.min(data.altitude, 50000) / 100000.0); // When matthieu visits ISS
+            shadowDistance = (float) (Math.min(data.altitude, 50000) / 100000.0); // When matthieu visits ISS
         }
         int widthOffset = (int) (drawable.getIntrinsicWidth() * shadowDistance);
         int heightOffset = (int) (drawable.getIntrinsicHeight() * shadowDistance);
 
-        int shadowColor = selected ? Color.parseColor("#88ffffff") : Color.parseColor("#88000000");
+        int shadowColor = selected ? Color.parseColor("#88222222") : Color.parseColor("#88000000");
 
         Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_4444);
         Canvas canvas = new Canvas(bitmap);
