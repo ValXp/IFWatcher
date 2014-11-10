@@ -19,8 +19,11 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.maps.android.SphericalUtil;
+import com.google.maps.android.geometry.Bounds;
 import com.valxp.app.infiniteflightwatcher.R;
 import com.valxp.app.infiniteflightwatcher.TimeProvider;
+import com.valxp.app.infiniteflightwatcher.heatmap.Heatmap;
+import com.valxp.app.infiniteflightwatcher.heatmap.SphericalMercator;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -30,6 +33,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -122,6 +126,9 @@ public class Regions extends ArrayList<Regions.Region> {
         private int mCount;
         private int mLastCount;
         private boolean mMetarDrawn = true;
+        private Bounds mXYBounds;
+        // This should allow us to have everything cleaned-up
+        private WeakReference<Heatmap> mHeatMapRef;
 
         public Region(JSONObject object) throws JSONException {
             mBottomLeft = new LatLng(object.getDouble("LatMin"), object.getDouble("LonMin"));
@@ -131,6 +138,7 @@ public class Regions extends ArrayList<Regions.Region> {
             bounds = new LatLngBounds(mBottomLeft, mTopRight);
             mName = object.getString("Name");
             mLastCount = -1;
+            mXYBounds = new Bounds(mTopLeft.longitude, mTopRight.longitude, mBottomLeft.latitude, mTopLeft.latitude);
         }
 
         private void updateMetar() {
@@ -146,6 +154,8 @@ public class Regions extends ArrayList<Regions.Region> {
                     e.printStackTrace();
                 }
             }
+            if (mHeatMapRef != null && mHeatMapRef.get() != null)
+                addHeatmapData();
             Log.d("Region", "Done Retrieving METAR for " + getName() + "! Found " + (mMetar == null ? "(null)" : mMetar.size()) + " entries!");
         }
 
@@ -166,6 +176,7 @@ public class Regions extends ArrayList<Regions.Region> {
             if (mLine != null) {
                 mLine.setFillColor(0x05000000);
             }
+
         }
         public void draw(GoogleMap map, boolean cluster) {
             if (!mMetarDrawn && mMetar != null) {
@@ -234,8 +245,53 @@ public class Regions extends ArrayList<Regions.Region> {
             return windiest;
         }
 
+        public Heatmap getHeatmap() {
+            if (mHeatMapRef != null && mHeatMapRef.get() != null) {
+                return mHeatMapRef.get();
+            }
+            double maxX = SphericalMercator.xFromLongitude(getTopRight().longitude);
+            double maxY = SphericalMercator.yFromLatitude(getTopRight().latitude);
+            double minX = SphericalMercator.xFromLongitude(getBottomLeft().longitude);
+            double minY = SphericalMercator.yFromLatitude(getBottomLeft().latitude);
+
+            double xDelta = maxX - minX;
+            double yDelta = maxY - minY;
+            maxX += xDelta / 5;
+            maxY += yDelta / 5;
+            minX -= xDelta / 5;
+            minY -= yDelta / 5;
+
+            Heatmap hm = new Heatmap(400, 400, 20, minX, minY, maxX - minX, maxY - minY);
+            mHeatMapRef = new WeakReference(hm);
+
+            addHeatmapData();
+
+            return hm;
+        }
+
+        public boolean hasHeatmap() {
+            return mHeatMapRef != null && mHeatMapRef.get() != null;
+        }
+
+        private void addHeatmapData() {
+            if (mMetar == null || mHeatMapRef == null)
+                return;
+            Heatmap hm = mHeatMapRef.get();
+            if (hm == null)
+                return;
+            for (Map.Entry<String, Metar> entry : mMetar.entrySet()) {
+                Metar m = entry.getValue();
+                LatLng pos = m.getPosition();
+                hm.addMercatorPoint(SphericalMercator.xFromLongitude(pos.longitude), SphericalMercator.yFromLatitude(pos.latitude), (float) (m.getWindGust() + m.getWindSpeed()));
+            }
+        }
+
         public boolean contains(LatLng position) {
             return bounds.contains(position);
+        }
+
+        public boolean isContainedIn(Bounds bounds) {
+            return bounds.contains(mXYBounds) || bounds.intersects(mXYBounds) || mXYBounds.contains(bounds);
         }
 
         public void onMapClick(GoogleMap map, LatLng loc) {

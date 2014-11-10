@@ -88,7 +88,7 @@ public class Flight {
 
         mLastReportUTC = data.reportTimestampUTC;
         mFlightHistory.append(data.reportTimestampUTC, data);
-        mUser = users.addUser(mUserID);
+        mUser = users.addUser(mUserID, mDisplayName);
         //Log.d("FlightPArsing", this.toString());
         mBounds = new Bounds(data.position);
     }
@@ -191,7 +191,7 @@ public class Flight {
 
     private void createMarker(GoogleMap map, AirplaneBitmapProvider provider, boolean selected) {
         // Marker creation needs the user to be set
-        if (mMarker != null || !mUser.isSet())
+        if (mMarker != null)
             return;
         Marker marker = map.addMarker(new MarkerOptions()
                 .position(getAproxLocation())
@@ -335,8 +335,10 @@ public class Flight {
                     "position=" + position +
                     ", speed=" + speed +
                     ", bearing=" + bearing +
+                    ", reportTimestampUTC=" + reportTimestampUTC +
                     ", altitude=" + altitude +
-                    '}';
+                    ", verticalSpeed=" + verticalSpeed +
+                    "} time delta=" + getAgeMs();
         }
     }
 }

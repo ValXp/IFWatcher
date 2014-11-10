@@ -66,8 +66,6 @@ public class Fleet {
             }
         }
 
-        mUsers.update(false);
-
         mIsUpToDate = true;
         mIsUpdating = false;
         return new Runnable() {

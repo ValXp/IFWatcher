@@ -1,5 +1,7 @@
 package com.valxp.app.infiniteflightwatcher.model;
 
+import android.util.Log;
+
 import com.valxp.app.infiniteflightwatcher.APIConstants;
 import com.valxp.app.infiniteflightwatcher.TimeProvider;
 import com.valxp.app.infiniteflightwatcher.Webservices;
@@ -10,23 +12,25 @@ import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.PriorityQueue;
 
 /**
  * Created by ValXp on 6/26/14.
  */
 public class Users {
     public static long REFRESH_THRESHOLD = 1000 * 60;
+    public static long MAX_USERS_PER_REQUEST = 10;
     private Map<String, User> mUsers; // Map of id to user
 
     public Users() {
         mUsers = new HashMap<String, User>();
     }
 
-    public User addUser(String id) {
+    public User addUser(String id, String name) {
         synchronized (mUsers) {
             User user = mUsers.get(id);
             if (user == null) {
-                mUsers.put(id, new User(id));
+                mUsers.put(id, new User(id, name));
             }
             return mUsers.get(id);
         }
@@ -35,9 +39,13 @@ public class Users {
     public void update(String id, boolean force) {
         if (id == null) {
             id = "";
+            long count = 0;
             for (Map.Entry<String, User> pair : mUsers.entrySet()) {
-                if (pair.getValue().needsRefresh() || force)
-                    id += "\""+pair.getKey() + "\",";
+                if ((pair.getValue().needsRefresh() || force) && ++count <= MAX_USERS_PER_REQUEST) {
+                    id += "\"" + pair.getKey() + "\",";
+                } else if (force) {
+                    pair.getValue().markForUpdate();
+                }
             }
         } else if (mUsers.get(id) == null || mUsers.get(id).mIsSet && !force){
             return;
@@ -47,6 +55,7 @@ public class Users {
         if (id.length() == 0) {
             return;
         }
+        Log.d("Users", "Updating user data for id: " + id);
         String request = "{\"UserIDs\":["+id+"]}";
 
         try {
@@ -54,6 +63,15 @@ public class Users {
         } catch (JSONException e) {
             e.printStackTrace();
         }
+    }
+
+    public long doesNeedUpdate() {
+        long count = 0;
+        for (Map.Entry<String, User> pair : mUsers.entrySet()) {
+            if (pair.getValue().needsRefresh())
+                count++;
+        }
+        return count;
     }
 
     public void update(boolean force) {
@@ -103,7 +121,7 @@ public class Users {
         private Double mFlightTime = 0d;
         private Long mLandingCount = 0l;
         private Long mLastFlight = 0l; // Time
-        private String mName = "";
+        private String mName;
         private Long mOnlineFlights = 0l;
         private Long mRank = 0l;
         private Long mSkills = 0l;
@@ -146,9 +164,10 @@ public class Users {
             }
         }
 
-        public User(String id) {
+        public User(String id, String name) {
             mId = id;
             mIsSet = false;
+            mName = name;
         }
 
         private User(JSONObject object) throws JSONException {
@@ -192,7 +211,7 @@ public class Users {
             mNeedsRefresh = true;
         }
         public boolean needsRefresh() {
-            return !mIsSet || (mNeedsRefresh && TimeProvider.getTime() - mLastRefresh > REFRESH_THRESHOLD);
+            return (mNeedsRefresh && TimeProvider.getTime() - mLastRefresh > REFRESH_THRESHOLD);
         }
 
         public String getId() {
