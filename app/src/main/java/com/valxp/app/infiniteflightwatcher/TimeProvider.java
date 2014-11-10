@@ -26,7 +26,7 @@ public class TimeProvider {
                     BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
                     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
                     sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-                    mTimeOffset = sdf.parse(reader.readLine().substring(0, 19)).getTime() - System.currentTimeMillis() - (3600 * 1000);
+                    mTimeOffset = sdf.parse(reader.readLine().substring(0, 19)).getTime() - System.currentTimeMillis();
                     Log.d("TimeProvider", "Time updated from server. Offset : " + mTimeOffset);
                 } catch (Exception e) {
                     e.printStackTrace();
