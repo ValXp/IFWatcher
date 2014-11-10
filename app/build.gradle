@@ -22,9 +22,9 @@ if (propsFile.exists()) {
 
         defaultConfig {
             minSdkVersion 14
-            targetSdkVersion 19
-            versionCode 19
-            versionName "5.0"
+            targetSdkVersion 21
+            versionCode 20
+            versionName "6.0"
         }
         buildTypes {
             release {
