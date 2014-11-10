@@ -63,7 +63,6 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
 
     public enum UserIds {
         Name,
-        Rank,
         Roles,
         Standing,
         XP,
@@ -287,8 +286,6 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
             } else if (user.getRole() == Users.User.Role.TESTER) {
                 bgDrawable = R.drawable.shadowed_ui_background_tester;
             }
-            mLeftTexts.get(UserIds.Name).setText(flight.getDisplayName());
-            mLeftTexts.get(UserIds.Rank).setText("Rank: " + user.getRank().toString() + (user.getRank() == 1 ? " \\o/" : ""));
             mLeftTexts.get(UserIds.Roles).setText("Role: " + user.getRole());
             mLeftTexts.get(UserIds.Standing).setText("Standing: " + Math.round(user.getStanding() * 100)+ "%");
             mLeftTexts.get(UserIds.XP).setText("XP: " + user.getSkills());
@@ -296,7 +293,10 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
             mLeftTexts.get(UserIds.LandingCount).setText("Landings: " + user.getLandingCount());
             mLeftTexts.get(UserIds.Violations).setText("Violations: " + user.getViolations());
             mLeftTexts.get(UserIds.OnlineFlights).setText("Online Flights : " + user.getOnlineFlights());
+        } else {
+            mLeftTexts.get(UserIds.Roles).setText("Loading...");
         }
+        mLeftTexts.get(UserIds.Name).setText(flight.getDisplayName());
 //        mInnerInfoPane.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
         mImageLayout.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
 //        mMyLoc.setBackgroundDrawable(getResources().getDrawable(bgDrawable));

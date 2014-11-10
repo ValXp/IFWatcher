@@ -230,7 +230,6 @@ public class MainListAdapter implements ExpandableListAdapter {
                 int bgColor = android.R.color.white;
                 switch (user.getRole()) {
                     case UNKNOWN:
-                        break;
                     case USER:
                         color = R.color.orange_color;
                         bgColor = android.R.color.black;
@@ -252,7 +251,7 @@ public class MainListAdapter implements ExpandableListAdapter {
 
                 name.setTextColor(mContext.getResources().getColor(color));
                 count.setTextColor(mContext.getResources().getColor(android.R.color.black));
-                name.setText(user.getName());
+                name.setText(user.getName() == null ? "Loading..." : user.getName());
                 String text;
                 if (flight == null) {
                     text = "Offline";

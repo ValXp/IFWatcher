@@ -5,19 +5,19 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.v4.app.ActionBarDrawerToggle;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.util.LongSparseArray;
 import android.support.v4.widget.DrawerLayout;
 import android.util.Log;
-import android.view.DragEvent;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.ExpandableListView;
 import android.widget.FrameLayout;
 import android.widget.ProgressBar;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -27,7 +27,12 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.TileOverlay;
+import com.google.android.gms.maps.model.TileOverlayOptions;
+import com.google.android.gms.maps.model.VisibleRegion;
+import com.google.maps.android.geometry.Bounds;
 import com.valxp.app.infiniteflightwatcher.adapters.MainListAdapter;
+import com.valxp.app.infiniteflightwatcher.heatmap.HeatMapTileProvider;
 import com.valxp.app.infiniteflightwatcher.model.Fleet;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
 import com.valxp.app.infiniteflightwatcher.model.Regions;
@@ -38,7 +43,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, GoogleMap.OnCameraChangeListener, ExpandableListView.OnChildClickListener, TouchableMapFragment.TouchableWrapper.UpdateMapAfterUserInteraction, GoogleMap.InfoWindowAdapter {
+public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, GoogleMap.OnCameraChangeListener, ExpandableListView.OnChildClickListener, TouchableMapFragment.TouchableWrapper.UpdateMapAfterUserInteraction, GoogleMap.InfoWindowAdapter, CompoundButton.OnCheckedChangeListener {
 
     public static final long FLIGHT_MAX_LIFETIME_SECONDS = 60 * 3;
     public static final long MAX_INTERPOLATE_DURATION_MS = FLIGHT_MAX_LIFETIME_SECONDS * 1000;
@@ -61,6 +66,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private ExpandableListView mExpandableList;
     private DrawerLayout mDrawer;
     private View mDrawerHandle;
+    private CheckBox mEnableOverlay;
     private MainListAdapter mListAdapter;
     private AirplaneBitmapProvider mBitmapProvider;
     private Marker mLastVisibleMarker = null;
@@ -70,6 +76,9 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private int mDrawRate = REFRESH_UI_MS;
     private Runnable mUpdateRunnable;
     private boolean mClusterMode = true;
+    private HeatMapTileProvider mHeatMapTileProvider;
+    private TileOverlay mTileOverlay;
+
 
     private float pxFromDp(float dp) {
         return dp * getResources().getDisplayMetrics().density;
@@ -89,6 +98,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mExpandableList = (ExpandableListView) findViewById(R.id.expandableList);
         mDrawer = (DrawerLayout) findViewById(R.id.drawer);
         mDrawerHandle = findViewById(R.id.drawer_handle);
+        mEnableOverlay = (CheckBox) findViewById(R.id.enable_overlay);
+        mEnableOverlay.setOnCheckedChangeListener(this);
         TextView version = (TextView) findViewById(R.id.version);
         try {
             PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
@@ -196,6 +207,11 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
                     .getMap();
         }
+        if (mHeatMapTileProvider == null) {
+            mHeatMapTileProvider = new HeatMapTileProvider();
+        }
+        if (mTileOverlay == null)
+            mTileOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mHeatMapTileProvider));
     }
 
     private void updateMap() {
@@ -443,6 +459,32 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             Log.d("MapsActivity", "Camera zoom " + cameraPosition.zoom + " Cluster mode " + (mClusterMode ? "enabled" : "disabled"));
             refreshUINow();
         }
+        if ((!mEnableOverlay.isChecked() || mClusterMode) && mTileOverlay != null) {
+            mTileOverlay.remove();
+            mTileOverlay = null;
+            mHeatMapTileProvider.removeAllHeatMaps();
+        } else if (mEnableOverlay.isChecked() && !mClusterMode) {
+            boolean hasChanged = false;
+            VisibleRegion vg = mMap.getProjection().getVisibleRegion();
+            Bounds camBounds = new Bounds(vg.farLeft.longitude, vg.farRight.longitude, vg.nearLeft.latitude, vg.farLeft.latitude);
+            for (Regions.Region region : mRegions) {
+                if (region.isContainedIn(camBounds)) {
+                    if (!mHeatMapTileProvider.containsHeatMap(region.getHeatmap())) {
+                        mHeatMapTileProvider.addHeatMap(region.getHeatmap());
+                        hasChanged = true;
+                    }
+                } else if (region.hasHeatmap() && mHeatMapTileProvider.containsHeatMap(region.getHeatmap())) {
+                    mHeatMapTileProvider.removeHeatMap(region.getHeatmap());
+                    hasChanged = true;
+                }
+            }
+            if (hasChanged && mTileOverlay != null) {
+                mTileOverlay.remove();
+                mTileOverlay = null;
+            }
+            if (mTileOverlay == null)
+                mTileOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mHeatMapTileProvider));
+        }
     }
 
     private void refreshList() {
@@ -525,6 +567,18 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         return null;
     }
 
+    @Override
+    public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+        if (mTileOverlay != null) {
+            mTileOverlay.remove();
+            mTileOverlay = null;
+        }
+        if (!b) {
+            mHeatMapTileProvider.removeAllHeatMaps();
+        }
+        onCameraChange(mMap.getCameraPosition());
+    }
+
     private class UpdateThread extends Thread {
         private boolean mStop = false;
 
@@ -556,6 +610,9 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                         refreshList();
                     }
                 });
+                while (mFleet.getUsers().doesNeedUpdate() > 0) {
+                    mFleet.getUsers().update(false);
+                }
                 try {
                     Thread.sleep(REFRESH_API_MS);
                 } catch (InterruptedException e) {

@@ -3,7 +3,6 @@ package com.valxp.app.infiniteflightwatcher;
 import android.util.Log;
 
 import org.json.JSONArray;
-import org.json.JSONException;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
 
@@ -12,7 +11,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -29,7 +27,11 @@ public class Webservices {
 
     public static JSONArray getJSON(APIConstants.APICalls call, String post) {
         try {
-            return new JSONArray(connectionToString(fetch(call, null, post)));
+            long startTime = TimeProvider.getTime();
+            JSONArray arr = new JSONArray(connectionToString(fetch(call, null, post)));
+            long delta = TimeProvider.getTime() - startTime;
+//            Log.d("Webservice", "Request to '" + call.name() + "' took " + delta + "ms");
+            return arr;
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -38,8 +40,11 @@ public class Webservices {
 
     public static XmlPullParser getXML(APIConstants.APICalls call, String get, String post) {
         try {
+            long startTime = TimeProvider.getTime();
             XmlPullParser parser = XmlPullParserFactory.newInstance().newPullParser();
             parser.setInput(fetch(call, get, post), null);
+            long delta = TimeProvider.getTime() - startTime;
+//            Log.d("Webservice", "Request to '" + call.name() + "' took " + delta + "ms");
             return parser;
         } catch (Exception e) {
             e.printStackTrace();
