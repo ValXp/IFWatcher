@@ -3,13 +3,22 @@
     <color name="admin_color">
         #FF5588FF
     </color>
+    <color name="admin_selected_color">
+        #FF75A8FF
+    </color>
     <color name="tester_color">
         #FF55FF88
+    </color>
+    <color name="tester_selected_color">
+        #FF75FFA8
     </color>
     <color name="gold_color">
         #FFFFd700
     </color>
     <color name="orange_color">
         #FFbb5a00
+    </color>
+    <color name="orange_selected_color">
+        #FFdb7a00
     </color>
 </resources>
