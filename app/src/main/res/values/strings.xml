@@ -8,9 +8,15 @@
     <string name="refreshing_data">Refreshing data...</string>
     <string name="tap_to_see_more_text">Tap for more details</string>
     <string name="enable_heatmap">Enable weather overlay</string>
+
     <plurals name="N_users_online">
         <item quantity="zero">Nobody is connected</item>
         <item quantity="one">One user online</item>
         <item quantity="other">%d users online</item>
     </plurals>
+
+    <string name="title_activity_server_chooser">Servers</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+
 </resources>

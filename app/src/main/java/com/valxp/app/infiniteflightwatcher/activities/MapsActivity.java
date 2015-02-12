@@ -1,5 +1,6 @@
-package com.valxp.app.infiniteflightwatcher;
+package com.valxp.app.infiniteflightwatcher.activities;
 
+import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
@@ -17,7 +18,6 @@ import android.widget.CompoundButton;
 import android.widget.ExpandableListView;
 import android.widget.FrameLayout;
 import android.widget.ProgressBar;
-import android.widget.RadioGroup;
 import android.widget.TextView;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -31,6 +31,12 @@ import com.google.android.gms.maps.model.TileOverlay;
 import com.google.android.gms.maps.model.TileOverlayOptions;
 import com.google.android.gms.maps.model.VisibleRegion;
 import com.google.maps.android.geometry.Bounds;
+import com.valxp.app.infiniteflightwatcher.AirplaneBitmapProvider;
+import com.valxp.app.infiniteflightwatcher.InfoPane;
+import com.valxp.app.infiniteflightwatcher.R;
+import com.valxp.app.infiniteflightwatcher.StrokedPolyLine;
+import com.valxp.app.infiniteflightwatcher.TimeProvider;
+import com.valxp.app.infiniteflightwatcher.TouchableMapFragment;
 import com.valxp.app.infiniteflightwatcher.adapters.MainListAdapter;
 import com.valxp.app.infiniteflightwatcher.heatmap.HeatMapTileProvider;
 import com.valxp.app.infiniteflightwatcher.model.Fleet;
@@ -78,6 +84,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private boolean mClusterMode = true;
     private HeatMapTileProvider mHeatMapTileProvider;
     private TileOverlay mTileOverlay;
+    private String mServerId;
 
 
     private float pxFromDp(float dp) {
@@ -87,6 +94,12 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        Intent intent = getIntent();
+        if (intent != null) {
+            mServerId = intent.getStringExtra(ServerChooserActivity.INTENT_SERVER_ID);
+        }
+
         setContentView(R.layout.activity_maps);
         setUpMapIfNeeded();
         mFleet = new Fleet();
@@ -151,7 +164,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mMap.setOnMapClickListener(this);
         mMap.setOnCameraChangeListener(this);
         mMap.setInfoWindowAdapter(this);
-        AppUpdater.checkUpdate(this);
     }
 
     @Override
@@ -594,7 +606,10 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
                 mServers = Server.getServers(mServers);
                 if (mFleet.getSelectedServer() == null && mServers != null && mServers.size() > 0) {
-                    mFleet.selectServer(mServers.entrySet().iterator().next().getValue());
+                    if (mServerId == null || !mServers.containsKey(mServerId))
+                        mFleet.selectServer(mServers.entrySet().iterator().next().getValue());
+                    else
+                        mFleet.selectServer(mServers.get(mServerId));
                 }
 
                 final Runnable toRunOnUI = mFleet.updateFleet(FLIGHT_MAX_LIFETIME_SECONDS);

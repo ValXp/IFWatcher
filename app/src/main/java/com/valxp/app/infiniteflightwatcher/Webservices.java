@@ -30,7 +30,7 @@ public class Webservices {
             long startTime = TimeProvider.getTime();
             JSONArray arr = new JSONArray(connectionToString(fetch(call, null, post)));
             long delta = TimeProvider.getTime() - startTime;
-//            Log.d("Webservice", "Request to '" + call.name() + "' took " + delta + "ms");
+            Log.d("Webservice", "Request to '" + call.name() + "' took " + delta + "ms");
             return arr;
         } catch (Exception e) {
             e.printStackTrace();
@@ -44,7 +44,7 @@ public class Webservices {
             XmlPullParser parser = XmlPullParserFactory.newInstance().newPullParser();
             parser.setInput(fetch(call, get, post), null);
             long delta = TimeProvider.getTime() - startTime;
-//            Log.d("Webservice", "Request to '" + call.name() + "' took " + delta + "ms");
+            Log.d("Webservice", "Request to '" + call.name() + "' took " + delta + "ms");
             return parser;
         } catch (Exception e) {
             e.printStackTrace();

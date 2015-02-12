@@ -8,7 +8,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.sql.Time;
 import java.util.HashMap;
 
 /**
@@ -28,7 +27,7 @@ public class Server {
 
 
     public static HashMap<String, Server> getServers(HashMap<String, Server> oldServers) {
-        if (TimeProvider.getTime() - mLastUpdated < SERVER_UPDATE_THRESHOLD) {
+        if (TimeProvider.getTime() - mLastUpdated < SERVER_UPDATE_THRESHOLD && oldServers != null) {
             return oldServers;
         }
         mLastUpdated = TimeProvider.getTime();

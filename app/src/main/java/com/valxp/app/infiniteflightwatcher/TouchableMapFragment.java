@@ -2,7 +2,6 @@ package com.valxp.app.infiniteflightwatcher;
 
 import android.content.Context;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -10,6 +9,7 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import com.google.android.gms.maps.SupportMapFragment;
+import com.valxp.app.infiniteflightwatcher.activities.MapsActivity;
 
 /**
  * Created by ValXp on 7/30/14.

@@ -295,6 +295,12 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
             mLeftTexts.get(UserIds.OnlineFlights).setText("Online Flights : " + user.getOnlineFlights());
         } else {
             mLeftTexts.get(UserIds.Roles).setText("Loading...");
+            mLeftTexts.get(UserIds.Standing).setText("Loading...");
+            mLeftTexts.get(UserIds.XP).setText("Loading...");
+            mLeftTexts.get(UserIds.FlightTime).setText("Loading...");
+            mLeftTexts.get(UserIds.LandingCount).setText("Loading...");
+            mLeftTexts.get(UserIds.Violations).setText("Loading...");
+            mLeftTexts.get(UserIds.OnlineFlights).setText("Loading...");
         }
         mLeftTexts.get(UserIds.Name).setText(flight.getDisplayName());
 //        mInnerInfoPane.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
