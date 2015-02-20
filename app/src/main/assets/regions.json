@@ -108,6 +108,20 @@
  "LonMax":-121,
  "LatMax":48,
  "Name" : "Seattle"
+},
+{
+ "LonMin":-159,
+ "LatMin":18,
+ "LonMax":-154,
+ "LatMax":23,
+ "Name" : "Hawaii"
+},
+{
+ "LonMin":101,
+ "LatMin":1,
+ "LonMax":105,
+ "LatMax":3,
+ "Name" : "Singapore"
 }
 ]
 
