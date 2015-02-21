@@ -110,7 +110,7 @@ public class Fleet {
     }
 
 
-    private void parseFlight(JSONObject object) throws JSONException {
+    public void parseFlight(JSONObject object) throws JSONException {
         Flight tempFlight = new Flight(mUsers, object);
         if (tempFlight.getAgeMs() / 1000 > 60 * 3) {
             return;

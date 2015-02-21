@@ -32,6 +32,7 @@ import com.google.android.gms.maps.model.TileOverlayOptions;
 import com.google.android.gms.maps.model.VisibleRegion;
 import com.google.maps.android.geometry.Bounds;
 import com.valxp.app.infiniteflightwatcher.AirplaneBitmapProvider;
+import com.valxp.app.infiniteflightwatcher.ForeFlightClient;
 import com.valxp.app.infiniteflightwatcher.InfoPane;
 import com.valxp.app.infiniteflightwatcher.R;
 import com.valxp.app.infiniteflightwatcher.StrokedPolyLine;
@@ -45,11 +46,14 @@ import com.valxp.app.infiniteflightwatcher.model.Regions;
 import com.valxp.app.infiniteflightwatcher.model.Server;
 import com.valxp.app.infiniteflightwatcher.model.Users;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
-public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, GoogleMap.OnCameraChangeListener, ExpandableListView.OnChildClickListener, TouchableMapFragment.TouchableWrapper.UpdateMapAfterUserInteraction, GoogleMap.InfoWindowAdapter, CompoundButton.OnCheckedChangeListener {
+public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, GoogleMap.OnCameraChangeListener, ExpandableListView.OnChildClickListener, TouchableMapFragment.TouchableWrapper.UpdateMapAfterUserInteraction, GoogleMap.InfoWindowAdapter, CompoundButton.OnCheckedChangeListener, ForeFlightClient.GPSListener {
 
     public static final long FLIGHT_MAX_LIFETIME_SECONDS = 60 * 3;
     public static final long MAX_INTERPOLATE_DURATION_MS = FLIGHT_MAX_LIFETIME_SECONDS * 1000;
@@ -85,6 +89,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private HeatMapTileProvider mHeatMapTileProvider;
     private TileOverlay mTileOverlay;
     private String mServerId;
+    private ForeFlightClient mForeFlightClient;
 
 
     private float pxFromDp(float dp) {
@@ -164,6 +169,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mMap.setOnMapClickListener(this);
         mMap.setOnCameraChangeListener(this);
         mMap.setInfoWindowAdapter(this);
+        mForeFlightClient = new ForeFlightClient(this, this);
     }
 
     @Override
@@ -176,6 +182,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             mUpdateThread.requestStop();
         mUpdateThread = new UpdateThread();
         mUpdateThread.start();
+
+        mForeFlightClient.start();
 
         // Refresh handler will call the map drawing on the UI thread every 15th of a second.
         if (mUIRefreshHandler != null)
@@ -211,6 +219,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mUpdateThread = null;
         mUIRefreshHandler.removeCallbacks(null);
         mUIRefreshHandler = null;
+        mForeFlightClient.stopClient();
         super.onPause();
     }
 
@@ -591,6 +600,31 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         onCameraChange(mMap.getCameraPosition());
     }
 
+    @Override
+    public void OnGPSFixReceived(ForeFlightClient.GPSData data) {
+        synchronized (mFleet) {
+            mFleet.getUsers().addUser(data.ip, "You @ " + data.ip).dontupdate();
+            JSONObject flightData = new JSONObject();
+            try {
+                flightData.put("UserID", data.ip);
+                flightData.put("Latitude", data.lon);
+                flightData.put("Longitude", data.lat);
+                flightData.put("Speed", data.groundSpeed);
+                flightData.put("Track", data.heading);
+                flightData.put("Altitude", data.altitude);
+                flightData.put("LastReportUTC", data.timestamp);
+                flightData.put("FlightID", data.ip);
+                flightData.put("VerticalSpeed", "0");
+                flightData.put("AircraftName", "Unknown");
+                flightData.put("CallSign", "Unknown");
+                flightData.put("DisplayName", "You");
+                mFleet.parseFlight(flightData);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     private class UpdateThread extends Thread {
         private boolean mStop = false;
 
@@ -608,7 +642,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 if (mFleet.getSelectedServer() == null && mServers != null && mServers.size() > 0) {
                     if (mServerId == null || !mServers.containsKey(mServerId))
                         mFleet.selectServer(mServers.entrySet().iterator().next().getValue());
-                    else
+                    else if (mServerId != null)
                         mFleet.selectServer(mServers.get(mServerId));
                 }
 

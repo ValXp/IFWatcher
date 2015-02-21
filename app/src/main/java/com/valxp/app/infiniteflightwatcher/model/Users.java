@@ -12,7 +12,6 @@ import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.PriorityQueue;
 
 /**
  * Created by ValXp on 6/26/14.
@@ -135,6 +134,8 @@ public class Users {
         private boolean mNeedsRefresh = false;
         private long mLastRefresh = 0l;
 
+        private boolean mDontUpdate = false;
+
         public enum Role {
             UNKNOWN(0, "Unknown"),
             USER(1, "User"),
@@ -207,11 +208,15 @@ public class Users {
             this.mLastRefresh = TimeProvider.getTime();
         }
 
+        public void dontupdate() {
+            mDontUpdate = true;
+        }
+
         public void markForUpdate() {
             mNeedsRefresh = true;
         }
         public boolean needsRefresh() {
-            return (mNeedsRefresh && TimeProvider.getTime() - mLastRefresh > REFRESH_THRESHOLD);
+            return (!mDontUpdate && mNeedsRefresh && TimeProvider.getTime() - mLastRefresh > REFRESH_THRESHOLD);
         }
 
         public String getId() {
