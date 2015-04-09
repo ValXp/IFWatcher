@@ -3,9 +3,9 @@ package com.valxp.app.infiniteflightwatcher;
 import android.content.Context;
 import android.util.Log;
 
-import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetSocketAddress;
 import java.net.SocketException;
 
 /**
@@ -30,35 +30,37 @@ public class ForeFlightClient extends Thread {
 
     public void stopClient() {
         mKeeprunning = false;
+        interrupt();
     }
 
     @Override
     public void run() {
         mKeeprunning = true;
         byte[] buffer = new byte[PACKET_SIZE];
-        DatagramSocket socket = null;
+        DatagramSocket socket;
         try {
-            socket = new DatagramSocket(FOREFLIGHT_PORT);
+            socket = new DatagramSocket(null);
+            socket.setReuseAddress(true);
+            socket.setReceiveBufferSize(PACKET_SIZE);
+            socket.bind(new InetSocketAddress(FOREFLIGHT_PORT));
         } catch (SocketException e) {
             e.printStackTrace();
             return;
         }
         DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-        try {
-            while (mKeeprunning) {
+        while (mKeeprunning) {
+            try {
                 socket.receive(packet);
-                if (mListener != null) {
-                    GPSData data = parseData(packet);
-                    if (data != null)
-                        mListener.OnGPSFixReceived(data);
-                }
+            } catch (Exception e) {
+                Log.e("ForeFlightClient", "Socket receive interrupted" + e.getMessage());
             }
-
-        } catch (SocketException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
+            if (mListener != null) {
+                GPSData data = parseData(packet);
+                if (data != null)
+                    mListener.OnGPSFixReceived(data);
+            }
         }
+        socket.close();
     }
 
     public static class ATTData {
@@ -79,14 +81,13 @@ public class ForeFlightClient extends Thread {
     private GPSData parseData(DatagramPacket packet) {
         String data = new String(packet.getData()).substring(0, packet.getLength());
 
-        if (data == null || data.length() < 4)
+        if (data.length() < 4)
             return null;
         String[] dataList = data.split(",");
         if (data.startsWith("XATT")) {
             ATTData att = new ATTData();
             int counter = 0;
             for (String str : dataList) {
-                //Log.d("ATTParse", "Counter["+counter+"] = " + str);
                 switch (counter) {
                     case 1:
                         att.yaw = Double.parseDouble(str);
@@ -104,20 +105,15 @@ public class ForeFlightClient extends Thread {
 
         } else if (data.startsWith("XGPS")) {
             GPSData gps = new GPSData();
-            gps.ip = packet.getAddress().getHostAddress();
             gps.timestamp = (((TimeProvider.getTime() / 1000) + 11644473600l) * 10000000);
             int counter = 0;
             for (String str : dataList) {
-
-                //Log.d("GPSParse", "Counter["+counter+"] = " + str);
                 switch (counter) {
                     case 1:
                         gps.lat = Double.parseDouble(str);
-                        Log.d("XGPS", "Lat: " + gps.lat);
                     break;
                     case 2:
                         gps.lon = Double.parseDouble(str);
-                        Log.d("XGPS", "Lon: " + gps.lon);
                     break;
                     case 3:
                         gps.altitude = Double.parseDouble(str) * 3.28084;
