@@ -169,7 +169,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mMap.setOnMapClickListener(this);
         mMap.setOnCameraChangeListener(this);
         mMap.setInfoWindowAdapter(this);
-        mForeFlightClient = new ForeFlightClient(this, this);
     }
 
     @Override
@@ -183,6 +182,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mUpdateThread = new UpdateThread();
         mUpdateThread.start();
 
+        mForeFlightClient = new ForeFlightClient(this, this);
         mForeFlightClient.start();
 
         // Refresh handler will call the map drawing on the UI thread every 15th of a second.
@@ -220,6 +220,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mUIRefreshHandler.removeCallbacks(null);
         mUIRefreshHandler = null;
         mForeFlightClient.stopClient();
+        mForeFlightClient = null;
         super.onPause();
     }
 
