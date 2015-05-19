@@ -98,10 +98,10 @@ public class AirplaneBitmapProvider {
 
         Users.User user = flight.getUser();
         int color = mContext.getResources().getColor(selected ? R.color.orange_selected_color : R.color.orange_color);
-        if (user.getRole() == Users.User.Role.ADMIN)
-            color = mContext.getResources().getColor(selected ? R.color.admin_selected_color : R.color.admin_color);
-        else if (user.getRole() == Users.User.Role.TESTER)
-            color = mContext.getResources().getColor(selected ? R.color.tester_selected_color : R.color.tester_color);
+//        if (user.getRole() == Users.User.Role.ADMIN)
+//            color = mContext.getResources().getColor(selected ? R.color.admin_selected_color : R.color.admin_color);
+//        else if (user.getRole() == Users.User.Role.TESTER)
+//            color = mContext.getResources().getColor(selected ? R.color.tester_selected_color : R.color.tester_color);
         if (user.getRank() != null && user.getRank() == 1)
             color = mContext.getResources().getColor(R.color.gold_color);
 

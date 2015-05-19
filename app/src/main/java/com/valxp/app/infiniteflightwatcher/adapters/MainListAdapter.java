@@ -228,21 +228,21 @@ public class MainListAdapter implements ExpandableListAdapter {
                 color = android.R.color.black;
                 Flight flight = user.getCurrentFlight();
                 int bgColor = android.R.color.white;
-                switch (user.getRole()) {
-                    case UNKNOWN:
-                    case USER:
-                        color = R.color.orange_color;
-                        bgColor = android.R.color.black;
-                        break;
-                    case TESTER:
-                        color = R.color.tester_color;
-                        bgColor = android.R.color.black;
-                        break;
-                    case ADMIN:
-                        color = R.color.admin_color;
-                        bgColor = android.R.color.black;
-                        break;
-                }
+//                switch (user.getRole()) {
+//                    case UNKNOWN:
+//                    case USER:
+//                        color = R.color.orange_color;
+//                        bgColor = android.R.color.black;
+//                        break;
+//                    case TESTER:
+//                        color = R.color.tester_color;
+//                        bgColor = android.R.color.black;
+//                        break;
+//                    case ADMIN:
+//                        color = R.color.admin_color;
+//                        bgColor = android.R.color.black;
+//                        break;
+//                }
                 if (user.getRank() == 1) {
                     color = R.color.gold_color;
                     bgColor = android.R.color.black;

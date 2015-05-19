@@ -53,8 +53,7 @@ public class Fleet {
             mCleanup = false;
             runnables.add(discardOldFlights(Long.MIN_VALUE));
         }
-        String postData = "{\"SessionID\":\"" + mSelectedServer.getId() + "\"}";
-        parseFlightList(Webservices.getJSON(APIConstants.APICalls.FLIGHTS, postData));
+        parseFlightList(Webservices.getJSON(APIConstants.APICalls.FLIGHTS, "&sessionid=" + mSelectedServer.getId()));
 
         runnables.add(discardOldFlights(thresholdInSeconds));
 

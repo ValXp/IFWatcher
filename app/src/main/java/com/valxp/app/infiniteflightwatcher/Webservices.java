@@ -22,13 +22,17 @@ import java.net.URLConnection;
 public class Webservices {
 
     public static JSONArray getJSON(APIConstants.APICalls call) {
-        return getJSON(call, null);
+        return getJSON(call, null, null);
     }
 
-    public static JSONArray getJSON(APIConstants.APICalls call, String post) {
+    public static JSONArray getJSON(APIConstants.APICalls call, String get) {
+        return getJSON(call, get, null);
+    }
+
+    public static JSONArray getJSON(APIConstants.APICalls call, String get, String post) {
         try {
             long startTime = TimeProvider.getTime();
-            JSONArray arr = new JSONArray(connectionToString(fetch(call, null, post)));
+            JSONArray arr = new JSONArray(connectionToString(fetch(call, get, post)));
             long delta = TimeProvider.getTime() - startTime;
             Log.d("Webservice", "Request to '" + call.name() + "' took " + delta + "ms");
             return arr;
