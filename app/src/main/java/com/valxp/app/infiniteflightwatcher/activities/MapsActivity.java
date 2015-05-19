@@ -607,14 +607,14 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             mFleet.getUsers().addUser(data.ip, "You @ " + data.ip).dontupdate();
             JSONObject flightData = new JSONObject();
             try {
-                flightData.put("UserID", data.ip);
+                flightData.put("UserID", "ForeFlight");
                 flightData.put("Latitude", data.lon);
                 flightData.put("Longitude", data.lat);
                 flightData.put("Speed", data.groundSpeed);
                 flightData.put("Track", data.heading);
                 flightData.put("Altitude", data.altitude);
                 flightData.put("LastReportUTC", data.timestamp);
-                flightData.put("FlightID", data.ip);
+                flightData.put("FlightID", "ForeFlight");
                 flightData.put("VerticalSpeed", "0");
                 flightData.put("AircraftName", "Unknown");
                 flightData.put("CallSign", "Unknown");
@@ -660,7 +660,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                         refreshList();
                     }
                 });
-                while (mFleet.getUsers().doesNeedUpdate() > 0) {
+                if (mFleet.getUsers().doesNeedUpdate() > 0) {
                     mFleet.getUsers().update(false);
                 }
                 try {

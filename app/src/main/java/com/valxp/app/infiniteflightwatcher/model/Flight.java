@@ -112,7 +112,7 @@ public class Flight {
             return;
         Log.d("Flight", "Pulling full flight...");
         mLastFullFlightPulledTime = TimeProvider.getTime();
-        JSONArray array = Webservices.getJSON(APIConstants.APICalls.FLIGHT_DETAILS, "{\"FlightID\":\"" + mFlightID + "\"}");
+        JSONArray array = Webservices.getJSON(APIConstants.APICalls.FLIGHT_DETAILS, "&flightid="+ mFlightID);
         if (array == null)
             return;
         synchronized (this) {

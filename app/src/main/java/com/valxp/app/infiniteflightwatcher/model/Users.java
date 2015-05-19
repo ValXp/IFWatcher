@@ -42,7 +42,7 @@ public class Users {
             for (Map.Entry<String, User> pair : mUsers.entrySet()) {
                 if ((pair.getValue().needsRefresh() || force) && ++count <= MAX_USERS_PER_REQUEST) {
                     id += "\"" + pair.getKey() + "\",";
-                } else if (force) {
+                } else if (force && !pair.getValue().mDontUpdate) {
                     pair.getValue().markForUpdate();
                 }
             }
@@ -58,7 +58,7 @@ public class Users {
         String request = "{\"UserIDs\":["+id+"]}";
 
         try {
-            parseJson(Webservices.getJSON(APIConstants.APICalls.USER_DETAILS, request));
+            parseJson(Webservices.getJSON(APIConstants.APICalls.USER_DETAILS, null,request));
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -126,7 +126,6 @@ public class Users {
         private Long mSkills = 0l;
         private Double mStanding = 0d; // 0 -> 0% 1 -> 100%
         private Long mViolations = 0l;
-        private Role mRole = Role.UNKNOWN;
 
         private Flight mCurrentFlight = null;
 
@@ -183,8 +182,6 @@ public class Users {
             mStanding = object.getDouble("Standing");
             mId = object.getString("UserID");
             mViolations = object.getLong("Violations");
-            Integer role = object.getInt("Roles");
-            mRole = role == null ? Role.UNKNOWN : Role.fromValue(role.intValue());
 
             mCurrentFlight = null;
             mNeedsRefresh = false;
@@ -202,7 +199,6 @@ public class Users {
             this.mSkills = other.mSkills;
             this.mStanding = other.mStanding;
             this.mViolations = other.mViolations;
-            this.mRole = other.mRole;
             this.mIsSet = true;
             this.mNeedsRefresh = false;
             this.mLastRefresh = TimeProvider.getTime();
@@ -261,10 +257,6 @@ public class Users {
 
         public Long getLandingCount() {
             return mLandingCount;
-        }
-
-        public Role getRole() {
-            return mRole;
         }
 
         public Flight getCurrentFlight() {

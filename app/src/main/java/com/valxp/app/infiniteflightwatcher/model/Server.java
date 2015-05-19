@@ -20,9 +20,8 @@ public class Server {
     private String mDescription;
     private String mId;
     private Long mMaxUsers;
-    private Double mMinStanding;
     private String mName;
-    private String mServerRegion;
+    private Integer mType;
     private Long mUserCount;
 
 
@@ -61,18 +60,16 @@ public class Server {
         mId = object.getString("Id");
         mDescription = object.getString("Description");
         mMaxUsers = object.getLong("MaxUsers");
-        mMinStanding = object.getDouble("MinStanding");
         mName = object.getString("Name");
-        mServerRegion = object.getString("ServerRegion");
+        mType = object.getInt("Type");
         mUserCount = object.getLong("UserCount");
     }
 
     synchronized private void update(Server server) {
         mDescription = server.getDescription();
         mMaxUsers = server.getMaxUsers();
-        mMinStanding = server.getMinStanding();
         mName = server.getName();
-        mServerRegion = server.getServerRegion();
+        mType = server.getType();
         mUserCount = server.getUserCount();
     }
 
@@ -88,17 +85,14 @@ public class Server {
         return mMaxUsers;
     }
 
-    public Double getMinStanding() {
-        return mMinStanding;
+    public Integer getType() {
+        return mType;
     }
 
     public String getName() {
         return mName;
     }
 
-    public String getServerRegion() {
-        return mServerRegion;
-    }
 
     public Long getUserCount() {
         return mUserCount;

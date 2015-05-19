@@ -281,12 +281,13 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
         if (user.isSet()) {
             if (user.getRank() == 1) {
                 bgDrawable = R.drawable.shadowed_ui_background_gold;
-            } else if (user.getRole() == Users.User.Role.ADMIN) {
-                bgDrawable = R.drawable.shadowed_ui_background_admin;
-            } else if (user.getRole() == Users.User.Role.TESTER) {
-                bgDrawable = R.drawable.shadowed_ui_background_tester;
             }
-            mLeftTexts.get(UserIds.Roles).setText("Role: " + user.getRole());
+//             else if (user.getRole() == Users.User.Role.ADMIN) {
+//                bgDrawable = R.drawable.shadowed_ui_background_admin;
+//            } else if (user.getRole() == Users.User.Role.TESTER) {
+//                bgDrawable = R.drawable.shadowed_ui_background_tester;
+//            }
+            //mLeftTexts.get(UserIds.Roles).setText("Role: " + user.getRole());
             mLeftTexts.get(UserIds.Standing).setText("Standing: " + Math.round(user.getStanding() * 100)+ "%");
             mLeftTexts.get(UserIds.XP).setText("XP: " + user.getSkills());
             mLeftTexts.get(UserIds.FlightTime).setText((int)Math.floor(user.getFlightTime() / 60) + " flight hours");
