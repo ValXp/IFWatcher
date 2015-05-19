@@ -1,5 +1,7 @@
 package com.valxp.app.infiniteflightwatcher.activities;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -62,6 +64,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     public static final int REFRESH_API_MS = 8 * 1000;
     public static final int REFRESH_INFO_MS = 2 * 1000;
     public static final double KTS_TO_M_PER_S = .52;
+    public static final long UI_TIMEOUT_MS = 1000 * 60 * 5; // 5 minutes
 
     public static final double MAP_ZOOM_CLUSTER = 5.5; // below 5.5 zoom, cluster markers
 
@@ -90,10 +93,17 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private TileOverlay mTileOverlay;
     private String mServerId;
     private ForeFlightClient mForeFlightClient;
+    private Long mLastInteractionTime = TimeProvider.getTime();
 
 
     private float pxFromDp(float dp) {
         return dp * getResources().getDisplayMetrics().density;
+    }
+
+    @Override
+    public void onUserInteraction(){
+        Log.d("UITimeout", "User interaction!");
+        mLastInteractionTime = TimeProvider.getTime();
     }
 
     @Override
@@ -426,8 +436,9 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         flight.zoomIn(mMap, new GoogleMap.CancelableCallback() {
             @Override
             public void onFinish() {
-                                 mInfoPane.setFollow(true);
-                                                                        }
+                mInfoPane.setFollow(true);
+            }
+
             @Override
             public void onCancel() {
             }
@@ -445,12 +456,13 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mMap.animateCamera(CameraUpdateFactory.newLatLng(flight.getAproxLocation()), new GoogleMap.CancelableCallback() {
             @Override
             public void onFinish() {
-                                 mInfoPane.setFollow(true);
-                                                                        }
+                mInfoPane.setFollow(true);
+            }
+
             @Override
             public void onCancel() {
-                                 mInfoPane.setFollow(true);
-                                                                        }
+                mInfoPane.setFollow(true);
+            }
         });
         return true;
     }
@@ -638,6 +650,33 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                         mProgress.setVisibility(View.VISIBLE);
                     }
                 });
+                if (TimeProvider.getTime() -  mLastInteractionTime > UI_TIMEOUT_MS) {
+                    Log.d("UITimeout", "Interaction timeout: " +  (TimeProvider.getTime() -  mLastInteractionTime) + " > " + UI_TIMEOUT_MS);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
+                            builder.setTitle(R.string.activity_timeout_title)
+                                    .setMessage(R.string.activity_timeout_message)
+                                    .setPositiveButton(R.string.activity_timeout_button, new DialogInterface.OnClickListener() {
+                                        @Override
+                                        public void onClick(DialogInterface dialogInterface, int i) {
+                                            requestWake();
+                                            onUserInteraction();
+                                        }
+                                    });
+                            builder.setOnCancelListener(new DialogInterface.OnCancelListener() {
+                                @Override
+                                public void onCancel(DialogInterface dialogInterface) {
+                                    requestWake();
+                                    onUserInteraction();
+                                }
+                            });
+                            builder.create().show();
+                        }
+                    });
+                    sleepwait();
+                }
 
                 mServers = Server.getServers(mServers);
                 if (mFleet.getSelectedServer() == null && mServers != null && mServers.size() > 0) {
@@ -676,7 +715,15 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             super.interrupt();
         }
 
-        public void requestWake() {
+        private synchronized void sleepwait() {
+            try {
+                wait();
+            } catch (InterruptedException e) {
+                Log.d("UITimeout", "Wait dismissed");
+            }
+        }
+
+        public synchronized void requestWake() {
             super.interrupt();
         }
 
