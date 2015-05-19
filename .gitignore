@@ -70,10 +70,6 @@ i#.idea/
  .idea/sqlDataSources.xml
  .idea/dynamic.xml
 
-## File-based project format
-*.ipr
-*.iws
-*.iml
 
 ## Additional for IntelliJ
 out/
