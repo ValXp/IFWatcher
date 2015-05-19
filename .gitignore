@@ -69,7 +69,7 @@ Temporary Items
  .idea/dataSources.xml
  .idea/sqlDataSources.xml
  .idea/dynamic.xml
-
+.idea/libraries
 
 ## Additional for IntelliJ
 out/
