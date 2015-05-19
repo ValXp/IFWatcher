@@ -24,9 +24,9 @@ public class TimeProvider {
                 try {
                     URL url = new URL("http://www.timeapi.org/utc/now");
                     BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
-                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
                     sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
-                    mTimeOffset = sdf.parse(reader.readLine().substring(0, 19)).getTime() - System.currentTimeMillis();
+                    mTimeOffset = sdf.parse(reader.readLine()).getTime() - System.currentTimeMillis();
                     Log.d("TimeProvider", "Time updated from server. Offset : " + mTimeOffset);
                 } catch (Exception e) {
                     e.printStackTrace();
