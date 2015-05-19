@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">Infinite Watcher</string>
-    <string name="title_activity_maps">Infinite Watcher</string>
+    <string name="app_name">Infinite Tracker</string>
+    <string name="title_activity_maps">Infinite Tracker</string>
     <string name="button_toggle_type">Toggle map type</string>
     <string name="nobody_is_playing">Sorry ! Nobody is playing right now ...</string>
     <string name="refreshing_data">Refreshing data...</string>
