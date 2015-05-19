@@ -16,7 +16,5 @@
     </plurals>
 
     <string name="title_activity_server_chooser">Infinite Watcher</string>
-    <string name="hello_world">Hello world!</string>
-    <string name="action_settings">Settings</string>
 
 </resources>
