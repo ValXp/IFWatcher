@@ -1,6 +1,8 @@
 package com.valxp.app.infiniteflightwatcher.activities;
 
 import android.app.Activity;
+import android.app.Dialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.widget.CardView;
@@ -11,9 +13,12 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GoogleApiAvailability;
 import com.valxp.app.infiniteflightwatcher.AppUpdater;
 import com.valxp.app.infiniteflightwatcher.R;
 import com.valxp.app.infiniteflightwatcher.TimeProvider;
+import com.valxp.app.infiniteflightwatcher.Utils;
 import com.valxp.app.infiniteflightwatcher.model.Server;
 
 import java.util.HashMap;
@@ -31,6 +36,7 @@ public class ServerChooserActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Utils.initContext(this);
         setContentView(R.layout.activity_server_chooser);
         mServerListView = (RecyclerView) findViewById(R.id.server_list);
         mLoadingContainer = findViewById(R.id.loading_container);
@@ -72,7 +78,18 @@ public class ServerChooserActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-
+        int ret = GoogleApiAvailability.getInstance().isGooglePlayServicesAvailable(this);
+        if (ret != ConnectionResult.SUCCESS) {
+            Dialog errDialog = GoogleApiAvailability.getInstance().getErrorDialog(this, ret, 0);
+            errDialog.setCancelable(false);
+            errDialog.setOnDismissListener(new DialogInterface.OnDismissListener() {
+                @Override
+                public void onDismiss(DialogInterface dialogInterface) {
+                    finish();
+                }
+            });
+            errDialog.show();
+        }
     }
 
     @Override
