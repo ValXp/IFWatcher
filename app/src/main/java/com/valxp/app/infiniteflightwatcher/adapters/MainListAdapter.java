@@ -216,7 +216,7 @@ public class MainListAdapter implements ExpandableListAdapter {
                 name.setTextColor(mContext.getResources().getColor(color));
                 count.setTextColor(mContext.getResources().getColor(color));
                 view.setTag(region);
-                Metar metar = region.getWindiest();
+                Metar metar = region.getWindiestAirport();
                 if (metar != null)
                     subname.setText(metar.getStationID() + " Wind speed: " + metar.getWindSpeed() + "kts" + " gust: " + metar.getWindGust() + "kts");
                 else
