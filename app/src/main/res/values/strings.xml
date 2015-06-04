@@ -20,4 +20,6 @@
     <string name="activity_timeout_title">Are you still there?</string>
     <string name="activity_timeout_message">Every 5 minutes this message will pop if you don\'t interact with the app to avoid making useless requests to the API</string>
     <string name="activity_timeout_button">Yep!</string>
+    <string name="please_choose_a_server">Please choose a server</string>
+    <string name="connecting_to_if">Connecting to infinite flight...</string>
 </resources>
