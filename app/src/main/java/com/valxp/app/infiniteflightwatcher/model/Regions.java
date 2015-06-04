@@ -22,6 +22,7 @@ import com.google.maps.android.SphericalUtil;
 import com.google.maps.android.geometry.Bounds;
 import com.valxp.app.infiniteflightwatcher.R;
 import com.valxp.app.infiniteflightwatcher.TimeProvider;
+import com.valxp.app.infiniteflightwatcher.Utils;
 import com.valxp.app.infiniteflightwatcher.heatmap.Heatmap;
 import com.valxp.app.infiniteflightwatcher.heatmap.SphericalMercator;
 
@@ -36,6 +37,7 @@ import java.io.InputStreamReader;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -43,12 +45,11 @@ import java.util.Map;
  */
 public class Regions extends ArrayList<Regions.Region> {
     public static long METAR_UPDATE_TRESHOLD_MS = 1000 * 60 * 15; // Refresh every 15 minutes
-    private Context mContext;
     private Long mLastMETARUpdate = null;
 
     public Regions(Context ctx) {
-        mContext = ctx;
         try {
+            Utils.Benchmark.start("regions.json parsing");
             InputStream file = ctx.getAssets().open("regions.json");
             BufferedReader streamReader = new BufferedReader(new InputStreamReader(file, "UTF-8"));
             StringBuilder strBuilder = new StringBuilder();
@@ -58,10 +59,10 @@ public class Regions extends ArrayList<Regions.Region> {
 
             JSONArray array = new JSONArray(strBuilder.toString());
             for (int i = 0; i < array.length(); ++i) {
-                add(new Region(array.getJSONObject(i)));
+                add(new Region(ctx, array.getJSONObject(i)));
             }
+            Utils.Benchmark.stopAndLog("regions.json parsing");
 
-            updateMETAR();
         } catch (IOException e) {
             e.printStackTrace();
         } catch (JSONException e) {
@@ -75,21 +76,23 @@ public class Regions extends ArrayList<Regions.Region> {
         }
     }
 
-    public void draw(GoogleMap map, boolean cluster) {
+    public void draw(Context ctx, GoogleMap map, boolean cluster) {
         for (Region region : this) {
-            region.draw(map, cluster);
+            region.draw(ctx, map, cluster);
         }
     }
 
-    public void onMapClick(GoogleMap map, LatLng loc) {
+    public void onMapClick(Context ctx, GoogleMap map, LatLng loc) {
         for (Region region : this) {
-            region.onMapClick(map, loc);
+            if (region.onMapClick(ctx, map, loc))
+                return;
         }
     }
 
-    public void onMarkerClick(GoogleMap map, Marker marker) {
+    public void onMarkerClick(Context ctx, GoogleMap map, Marker marker) {
         for (Region region : this) {
-            region.onMarkerClick(map, marker);
+            if (region.onMarkerClick(ctx, map, marker))
+                return;
         }
     }
 
@@ -109,8 +112,12 @@ public class Regions extends ArrayList<Regions.Region> {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                for (Region region : Regions.this) {
-                    region.updateMetar();
+                try {
+                    for (Region region : Regions.this) {
+                        region.updateMetar();
+                    }
+                }catch (Exception e) {
+                    e.printStackTrace();
                 }
             }
         }).start();
@@ -129,8 +136,9 @@ public class Regions extends ArrayList<Regions.Region> {
         private Bounds mXYBounds;
         // This should allow us to have everything cleaned-up
         private WeakReference<Heatmap> mHeatMapRef;
+        private Map<String, Airport> mAirports;
 
-        public Region(JSONObject object) throws JSONException {
+        public Region(Context ctx, JSONObject object) throws JSONException {
             mBottomLeft = new LatLng(object.getDouble("LatMin"), object.getDouble("LonMin"));
             mBottomRight = new LatLng(object.getDouble("LatMin"), object.getDouble("LonMax"));
             mTopRight = new LatLng(object.getDouble("LatMax"), object.getDouble("LonMax"));
@@ -139,6 +147,30 @@ public class Regions extends ArrayList<Regions.Region> {
             mName = object.getString("Name");
             mLastCount = -1;
             mXYBounds = new Bounds(mTopLeft.longitude, mTopRight.longitude, mBottomLeft.latitude, mTopLeft.latitude);
+            mAirports = new HashMap<>();
+            try {
+                String filename = object.getString("Airports");
+                Utils.Benchmark.start(filename + " parsing");
+                InputStream file = ctx.getAssets().open(filename);
+                BufferedReader streamReader = new BufferedReader(new InputStreamReader(file, "UTF-8"));
+                StringBuilder strBuilder = new StringBuilder();
+                String inputStr;
+                while ((inputStr = streamReader.readLine()) != null)
+                    strBuilder.append(inputStr);
+
+                JSONArray array = new JSONArray(strBuilder.toString());
+                for (int i = 0; i < array.length(); ++i) {
+                    Airport ap = new Airport(array.getJSONObject(i));
+                    mAirports.put(ap.ICAO, ap);
+                }
+                Utils.Benchmark.stopAndLog(filename + " parsing");
+
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            Log.d("Region", mAirports.size() + " airports found in " + mName);
         }
 
         private void updateMetar() {
@@ -178,7 +210,7 @@ public class Regions extends ArrayList<Regions.Region> {
             }
 
         }
-        public void draw(GoogleMap map, boolean cluster) {
+        public void draw(Context ctx, GoogleMap map, boolean cluster) {
             if (!mMetarDrawn && mMetar != null) {
                 for (Map.Entry<String, Metar> entry : mMetar.entrySet()) {
                     Metar metar = entry.getValue();
@@ -208,7 +240,7 @@ public class Regions extends ArrayList<Regions.Region> {
                     if (mMarker != null)
                         mMarker.remove();
                     String text = Integer.toString(mCount);
-                    TextView t = (TextView) LayoutInflater.from(mContext).inflate(R.layout.region_counter, null);
+                    TextView t = (TextView) LayoutInflater.from(ctx).inflate(R.layout.region_counter, null);
                     t.setText(text);
                     t.measure(View.MeasureSpec.getSize(t.getMeasuredWidth()), View.MeasureSpec.getSize(t.getMeasuredHeight()));
                     Bitmap bmp = Bitmap.createBitmap(t.getMeasuredWidth(), t.getMeasuredHeight(), Bitmap.Config.ARGB_4444);//TEXT_SIZE * text.length(), 44, Bitmap.Config.ARGB_4444);
@@ -230,16 +262,21 @@ public class Regions extends ArrayList<Regions.Region> {
             }
         }
 
-        public Metar getWindiest() {
+        public Metar getWindiestAirport() {
             if (mMetar == null)
                 return null;
             Metar windiest = null;
-            for (Map.Entry<String, Metar> entry : mMetar.entrySet()) {
-                Metar metar = entry.getValue();
-                if (windiest == null)
-                    windiest = metar;
-                else if (!(metar.getWindGust() < windiest.getWindGust()) && metar.getWindSpeed() > windiest.getWindSpeed()) {
-                    windiest = metar;
+            Iterator<Map.Entry<String, Metar>> it = mMetar.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<String, Metar> entry = it.next();
+                // Ignoring METAR stations that are not airports
+                if (mAirports.containsKey(entry.getKey())) {
+                    Metar metar = entry.getValue();
+                    if (windiest == null)
+                        windiest = metar;
+                    else if (!(metar.getWindGust() < windiest.getWindGust()) && metar.getWindSpeed() > windiest.getWindSpeed()) {
+                        windiest = metar;
+                    }
                 }
             }
             return windiest;
@@ -294,23 +331,31 @@ public class Regions extends ArrayList<Regions.Region> {
             return bounds.contains(mXYBounds) || bounds.intersects(mXYBounds) || mXYBounds.contains(bounds);
         }
 
-        public void onMapClick(GoogleMap map, LatLng loc) {
-            if (bounds.contains(loc))
-                zoomOnRegion(map);
+        // Returns true if event consumed
+        public boolean onMapClick(Context ctx, GoogleMap map, LatLng loc) {
+            if (bounds.contains(loc)) {
+                zoomOnRegion(ctx, map);
+                return true;
+            }
+            return false;
         }
 
-        public void onMarkerClick(GoogleMap map, Marker marker) {
-            if (marker != null && mMarker != null && mMarker.equals(marker))
-                zoomOnRegion(map);
+        // Returns true if event consumed
+        public boolean onMarkerClick(Context ctx, GoogleMap map, Marker marker) {
+            if (marker != null && mMarker != null && mMarker.equals(marker)) {
+                zoomOnRegion(ctx, map);
+                return true;
+            }
+            return false;
         }
 
-        public void zoomOnRegion(GoogleMap map, GoogleMap.CancelableCallback callback) {
+        public void zoomOnRegion(Context ctx, GoogleMap map, GoogleMap.CancelableCallback callback) {
             map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 0), callback);
-            Toast.makeText(mContext, "Welcome to " + mName + "!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(ctx, "Welcome to " + mName + "!", Toast.LENGTH_SHORT).show();
         }
 
-        public void zoomOnRegion(GoogleMap map) {
-            zoomOnRegion(map, null);
+        public void zoomOnRegion(Context ctx, GoogleMap map) {
+            zoomOnRegion(ctx, map, null);
         }
 
         public String getName() {

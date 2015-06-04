@@ -40,6 +40,7 @@ import com.valxp.app.infiniteflightwatcher.R;
 import com.valxp.app.infiniteflightwatcher.StrokedPolyLine;
 import com.valxp.app.infiniteflightwatcher.TimeProvider;
 import com.valxp.app.infiniteflightwatcher.TouchableMapFragment;
+import com.valxp.app.infiniteflightwatcher.Utils;
 import com.valxp.app.infiniteflightwatcher.adapters.MainListAdapter;
 import com.valxp.app.infiniteflightwatcher.heatmap.HeatMapTileProvider;
 import com.valxp.app.infiniteflightwatcher.model.Fleet;
@@ -54,6 +55,7 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+
 
 public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, GoogleMap.OnCameraChangeListener, ExpandableListView.OnChildClickListener, TouchableMapFragment.TouchableWrapper.UpdateMapAfterUserInteraction, GoogleMap.InfoWindowAdapter, CompoundButton.OnCheckedChangeListener, ForeFlightClient.GPSListener {
 
@@ -96,9 +98,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private Long mLastInteractionTime = TimeProvider.getTime();
 
 
-    private float pxFromDp(float dp) {
-        return dp * getResources().getDisplayMetrics().density;
-    }
 
     @Override
     public void onUserInteraction(){
@@ -108,7 +107,11 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Log.d("MapsActivityy", "onCreate");
+        Utils.Benchmark.start("onCreate");
         super.onCreate(savedInstanceState);
+
+        Utils.initContext(this);
 
         Intent intent = getIntent();
         if (intent != null) {
@@ -122,6 +125,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mInfoPane = (InfoPane) findViewById(R.id.info_pane);
         Button button = (Button) findViewById(R.id.toggleMapType);
         mNobodyPlayingText = (TextView) findViewById(R.id.nobody_is_playing);
+        mNobodyPlayingText.setText(R.string.connecting_to_if);
+        mNobodyPlayingText.setVisibility(View.VISIBLE);
         mProgress = (ProgressBar) findViewById(R.id.progress);
         mExpandableList = (ExpandableListView) findViewById(R.id.expandableList);
         mDrawer = (DrawerLayout) findViewById(R.id.drawer);
@@ -159,7 +164,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             @Override
             public void onDrawerSlide(View drawerView, float slideOffset) {
                 FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) mDrawerHandle.getLayoutParams();
-                params.setMargins((int) pxFromDp(-6 - slideOffset * 20), (int) pxFromDp(5), 0, 0);
+                params.setMargins((int) Utils.pxFromDp(-6 - slideOffset * 20), (int) Utils.pxFromDp(5), 0, 0);
                 mDrawerHandle.setLayoutParams(params);
             }
 
@@ -179,10 +184,13 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mMap.setOnMapClickListener(this);
         mMap.setOnCameraChangeListener(this);
         mMap.setInfoWindowAdapter(this);
+        Utils.Benchmark.stopAndLog("onCreate");
     }
 
     @Override
     protected void onResume() {
+        Log.d("MapsActivityy", "onResume");
+        Utils.Benchmark.start("onResume");
         super.onResume();
         TimeProvider.synchronizeWithInternet();
         setUpMapIfNeeded();
@@ -216,6 +224,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             }
         };
         refreshUINow();
+        Utils.Benchmark.stopAndLog("onResume");
     }
 
     private void refreshUINow() {
@@ -247,8 +256,17 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     }
 
     private void updateMap() {
+//        Utils.Benchmark.start("updateMap");
         Flight selectedFlight = null;
-        mNobodyPlayingText.setVisibility((mFleet.getActiveFleetSize() <= 0 && mFleet.isUpToDate()) ? View.VISIBLE : View.GONE);
+        if (mFleet.isUpToDate()) {
+            if (mFleet.getActiveFleetSize() <= 0) {
+                mNobodyPlayingText.setText(R.string.nobody_is_playing);
+                mNobodyPlayingText.setVisibility(View.VISIBLE);
+            } else {
+                mNobodyPlayingText.setVisibility(View.GONE);
+
+            }
+        }
         boolean updateInfo = false;
         long now = TimeProvider.getTime();
         if (now - mLastTimeInfoUpdated > REFRESH_INFO_MS) {
@@ -256,7 +274,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             updateInfo = true;
         }
 
-        mRegions.draw(mMap, mClusterMode);
+        mRegions.draw(this, mMap, mClusterMode);
 
         LatLngBounds bounds = mMap.getProjection().getVisibleRegion().latLngBounds;
 
@@ -333,6 +351,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 updatePath(selectedFlight);
             }
         }
+//        Utils.Benchmark.stopAndLog("updateMap");
     }
 
     @Override
@@ -377,33 +396,35 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
 
     private void updatePath(Flight flight) {
-            ArrayList<StrokedPolyLine> trail = (ArrayList<StrokedPolyLine>) flight.getHistoryTrail();
-            if (trail == null)
-                trail = new ArrayList<StrokedPolyLine>();
-            LongSparseArray<Flight.FlightData> history = flight.getFlightHistory();
-            if (history == null || history.size() < 2) {
-                flight.removeHistoryTrail();
-            }
-            if (trail.size() == 0 || history.size() < 2 ||
-                    trail.size() != history.size() - 1 ||
-                    !history.valueAt(history.size() - 2).position.equals(trail.get(trail.size() - 1).getPoints().get(0)) ||
-                    !history.valueAt(history.size() - 1).position.equals(trail.get(trail.size() - 1).getPoints().get(1))) {
-                for (int i = 0; i < history.size() - 1; ++i) {
-                    StrokedPolyLine oldLine = null;
-                    if (trail.size() > i)
-                        oldLine = trail.get(i);
-                    if (oldLine == null || !oldLine.getPoints().get(0).equals(history.valueAt(i).position) || !oldLine.getPoints().get(1).equals(history.valueAt(i+1).position)) {
-                        if (oldLine != null)
-                            oldLine.remove();
-                        StrokedPolyLine line = new StrokedPolyLine(mMap, history.valueAt(i), history.valueAt(i + 1));
-                        if (oldLine == null)
-                            trail.add(line);
-                        else
-                            trail.set(i, line);
-                    }
+//        Utils.Benchmark.start("updatePath");
+        ArrayList<StrokedPolyLine> trail = (ArrayList<StrokedPolyLine>) flight.getHistoryTrail();
+        if (trail == null)
+            trail = new ArrayList<StrokedPolyLine>();
+        LongSparseArray<Flight.FlightData> history = flight.getFlightHistory();
+        if (history == null || history.size() < 2) {
+            flight.removeHistoryTrail();
+        }
+        if (trail.size() == 0 || history.size() < 2 ||
+                trail.size() != history.size() - 1 ||
+                !history.valueAt(history.size() - 2).position.equals(trail.get(trail.size() - 1).getPoints().get(0)) ||
+                !history.valueAt(history.size() - 1).position.equals(trail.get(trail.size() - 1).getPoints().get(1))) {
+            for (int i = 0; i < history.size() - 1; ++i) {
+                StrokedPolyLine oldLine = null;
+                if (trail.size() > i)
+                    oldLine = trail.get(i);
+                if (oldLine == null || !oldLine.getPoints().get(0).equals(history.valueAt(i).position) || !oldLine.getPoints().get(1).equals(history.valueAt(i+1).position)) {
+                    if (oldLine != null)
+                        oldLine.remove();
+                    StrokedPolyLine line = new StrokedPolyLine(mMap, history.valueAt(i), history.valueAt(i + 1));
+                    if (oldLine == null)
+                        trail.add(line);
+                    else
+                        trail.set(i, line);
                 }
             }
-            flight.setHistoryTrail(trail);
+        }
+        flight.setHistoryTrail(trail);
+//        Utils.Benchmark.stopAndLog("updatePath");
     }
 
     private void unselectFlights() {
@@ -449,7 +470,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     public boolean onMarkerClick(Marker marker) {
         Flight flight = flightForMarker(marker);
         if (flight == null) {
-            mRegions.onMarkerClick(mMap, marker);
+            mRegions.onMarkerClick(this, mMap, marker);
             return true;
         }
         selectFlight(flight);
@@ -471,7 +492,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     public void onMapClick(LatLng latLng) {
         unselectFlights();
         if (mClusterMode) {
-            mRegions.onMapClick(mMap, latLng);
+            mRegions.onMapClick(this, mMap, latLng);
         }
     }
 
@@ -549,31 +570,13 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             case MainListAdapter.REGIONS_INDEX:
                 region = (Regions.Region) tag;
                 mDrawer.closeDrawers();
-                region.zoomOnRegion(mMap);
+                region.zoomOnRegion(this, mMap);
                 unselectFlights();
                 break;
             case MainListAdapter.USERS_INDEX:
                 final Flight flight = (Flight) tag;
                 mDrawer.closeDrawers();
-                region = mRegions.regionContainingPoint(flight.getAproxLocation());
-                if (region != null && mClusterMode) {
-                    region.showInside();
-                    region.zoomOnRegion(mMap, new GoogleMap.CancelableCallback() {
-                        @Override
-                        public void onFinish() {
-                            flight.createMarker(mMap, mBitmapProvider);
-                            selectMarkerFromUI(flight);
-                        }
-
-                        @Override
-                        public void onCancel() {
-                        }
-                    });
-
-                } else {
-                    flight.createMarker(mMap, mBitmapProvider);
-                    selectMarkerFromUI(flight);
-                }
+                showFlight(flight);
                 break;
             case MainListAdapter.SERVERS_INDEX:
                 mDrawer.closeDrawers();
@@ -584,6 +587,29 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 break;
         }
         return true;
+    }
+
+    public void showFlight(final Flight flight) {
+
+        Regions.Region region = mRegions.regionContainingPoint(flight.getAproxLocation());
+        if (region != null && mClusterMode) {
+            region.showInside();
+            region.zoomOnRegion(this, mMap, new GoogleMap.CancelableCallback() {
+                @Override
+                public void onFinish() {
+                    flight.createMarker(mMap, mBitmapProvider);
+                    selectMarkerFromUI(flight);
+                }
+
+                @Override
+                public void onCancel() {
+                }
+            });
+
+        } else {
+            flight.createMarker(mMap, mBitmapProvider);
+            selectMarkerFromUI(flight);
+        }
     }
 
     @Override

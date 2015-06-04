@@ -59,7 +59,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:background="@drawable/shadowed_ui_background"
-            android:text="@string/nobody_is_playing"
+            android:text="@string/connecting_to_if"
             android:textColor="@android:color/black"
             android:textSize="20sp" />
 
