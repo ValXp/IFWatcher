@@ -18,8 +18,8 @@ public class ForeFlightClient extends Thread {
     private boolean mKeeprunning;
     private GPSListener mListener;
 
-    public static interface GPSListener {
-        public void OnGPSFixReceived(GPSData data);
+    public interface GPSListener {
+        void OnGPSFixReceived(GPSData data);
     }
 
     public ForeFlightClient(Context context, GPSListener listener) {
@@ -77,6 +77,12 @@ public class ForeFlightClient extends Thread {
         public long timestamp;
         public String ip;
     }
+    public static class TrafficGPSData extends GPSData {
+        public int ICAO;
+        public boolean isAirborne;
+        public float verticalSpeed;
+        public String callsign;
+    }
 
     private GPSData parseData(DatagramPacket packet) {
         String data = new String(packet.getData()).substring(0, packet.getLength());
@@ -124,6 +130,43 @@ public class ForeFlightClient extends Thread {
                     case 5:
                         gps.groundSpeed = Double.parseDouble(str) * 1.943844;
                     break;
+                }
+                ++counter;
+            }
+            return gps;
+        } else if (data.startsWith("XTRAFFIC")) {
+            TrafficGPSData gps = new TrafficGPSData();
+            gps.timestamp = (((TimeProvider.getTime() / 1000) + 11644473600l) * 10000000);
+            int counter = 0;
+            for (String str : dataList) {
+                switch (counter) {
+                    case 1:
+                        gps.ICAO = Integer.parseInt(str);
+                        break;
+                    case 2:
+                        gps.lat = Double.parseDouble(str);
+                        break;
+                    case 3:
+                        gps.lon = Double.parseDouble(str);
+                        break;
+                    case 4:
+                        gps.altitude = Double.parseDouble(str); // Already in feet
+                        break;
+                    case 5:
+                        gps.verticalSpeed = Float.parseFloat(str);
+                        break;
+                    case 6:
+                        gps.isAirborne = Boolean.parseBoolean(str);
+                        break;
+                    case 7:
+                        gps.heading = Double.parseDouble(str);
+                        break;
+                    case 8:
+                        gps.groundSpeed = Double.parseDouble(str); // Already in kts
+                        break;
+                    case 9:
+                        gps.callsign = str;
+                        break;
                 }
                 ++counter;
             }

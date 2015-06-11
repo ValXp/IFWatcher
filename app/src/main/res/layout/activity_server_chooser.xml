@@ -1,70 +1,32 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="@drawable/shadowed_ui_background"
     android:orientation="vertical"
     android:animateLayoutChanges="true"
+    android:layout_margin="50dp"
+    android:gravity="center_horizontal"
     tools:context="com.valxp.app.infiniteflightwatcher.activities.ServerChooserActivity">
 
     <TextView
-        android:layout_marginTop="50dp"
-        android:layout_marginLeft="50dp"
-        android:layout_marginRight="50dp"
+        android:layout_margin="10dp"
         android:background="@android:color/white"
         android:id="@+id/server_chooser_title"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:padding="10dp"
-        android:gravity="center_horizontal"
-        android:text="Please choose a server"
+        android:paddingLeft="30dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp"
+        android:paddingRight="30dp"
+        android:layout_gravity="center_horizontal"
         android:layout_marginBottom="10dp"
-        android:textAlignment="center"
         android:textColor="@android:color/black"
         android:elevation="5dp"
         />
-
-    <FrameLayout
-        android:layout_marginBottom="50dp"
-        android:layout_marginLeft="50dp"
-        android:layout_marginRight="50dp"
-        android:background="@android:color/white"
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/server_list"
+        android:layout_margin="10dp"
         android:layout_width="match_parent"
-        android:animateLayoutChanges="true"
-        android:padding="10dp"
-        android:elevation="5dp"
         android:layout_height="wrap_content">
-
-        <LinearLayout
-            android:id="@+id/loading_container"
-            android:layout_width="match_parent"
-            android:layout_marginBottom="10dp"
-            android:gravity="center_horizontal"
-            android:orientation="vertical"
-            android:animateLayoutChanges="true"
-            android:layout_height="wrap_content">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_margin="5dp"
-                android:gravity="center"
-                android:textColor="@android:color/black"
-                android:text="Connecting to infinite flight..."
-                android:textAlignment="center"
-                />
-            <ProgressBar
-                android:layout_margin="5dp"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:indeterminate="true"
-                />
-        </LinearLayout>
-
-        <android.support.v7.widget.RecyclerView
-            android:id="@+id/server_list"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-            </android.support.v7.widget.RecyclerView>
-    </FrameLayout>
+        </android.support.v7.widget.RecyclerView>
 
 </LinearLayout>

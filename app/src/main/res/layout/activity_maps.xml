@@ -103,6 +103,16 @@
                 android:layout_height="wrap_content"
                 android:src="@android:drawable/ic_menu_mylocation"
                 android:background="@drawable/shadowed_ui_background"/>
+            <ImageView
+                android:layout_marginLeft="2dp"
+                android:id="@+id/share"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toRightOf="@id/my_loc"
+                android:layout_alignBottom="@id/image_layout"
+                android:src="@android:drawable/ic_menu_share"
+                android:background="@drawable/shadowed_ui_background"
+                />
             <LinearLayout
                 android:layout_margin="2dp"
                 android:id="@+id/inner_info_pane"

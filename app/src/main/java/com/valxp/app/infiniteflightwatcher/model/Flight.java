@@ -1,5 +1,7 @@
 package com.valxp.app.infiniteflightwatcher.model;
 
+import android.animation.Animator;
+import android.app.Activity;
 import android.util.Log;
 import android.support.v4.util.LongSparseArray;
 
@@ -12,6 +14,8 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.maps.android.SphericalUtil;
 import com.valxp.app.infiniteflightwatcher.APIConstants;
 import com.valxp.app.infiniteflightwatcher.AirplaneBitmapProvider;
+import com.valxp.app.infiniteflightwatcher.MarkerAnimation;
+import com.valxp.app.infiniteflightwatcher.Utils;
 import com.valxp.app.infiniteflightwatcher.activities.MapsActivity;
 import com.valxp.app.infiniteflightwatcher.StrokedPolyLine;
 import com.valxp.app.infiniteflightwatcher.TimeProvider;
@@ -27,6 +31,7 @@ import java.util.List;
  * Created by ValXp on 5/20/14.
  */
 public class Flight {
+    public static Activity ctx;
     public static double METERS_TO_NAUTICAL_MILES = 0.000539957;
     public static long FULL_FLIGHT_MIN_DELAY = 2 * 60 * 1000; // MS
     private String mAircraftName;
@@ -39,11 +44,24 @@ public class Flight {
     private Bounds mBounds;
     private long mLastFullFlightPulledTime;
 
+    public Server getServer() {
+        return mServer;
+    }
+
+    public void setServer(Server mServer) {
+        this.mServer = mServer;
+    }
+
+    private Server mServer;
+
     private LongSparseArray<FlightData> mFlightHistory;
     private Marker mMarker;
+    private Animator mMarkerAnimator;
+    private Animator mLineAnimator;
     private List<StrokedPolyLine> mHistoryTrail;
     private StrokedPolyLine mAproxTrail;
     private boolean mNeedsUpdate = false;
+    private boolean mIsSelected = true;
 
     private static class Bounds {
         public double minLat;
@@ -101,8 +119,67 @@ public class Flight {
         if (data.size() <= 0 || mFlightHistory.size() <= 0)
             return;
         for (int i = 0; i < data.size(); ++i) {
-            mBounds.update(data.valueAt(i).position);
-            mFlightHistory.append(data.keyAt(i), data.valueAt(i));
+            _addFlightData(data.valueAt(i));
+        }
+        // Update marker for latest position
+        updateAnim();
+    }
+
+    public void addFlightData(FlightData data) {
+        _addFlightData(data);
+        // Update marker for latest position
+        updateAnim();
+    }
+
+    private void updateAnim() {
+        ctx.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (mMarker != null) {
+                    mMarkerAnimator.cancel();
+                    mMarker.setRotation(getCurrentData().bearing.floatValue());
+                    mMarker.setPosition(getAproxLocation());
+                    createMarkerAnimator();
+                }
+                if (mLineAnimator != null) {
+                    mLineAnimator.cancel();
+                    if (mAproxTrail != null)
+                        createLineAnimator();
+                }
+                if (mIsSelected)
+                    ((MapsActivity)ctx).updatePath(Flight.this);
+            }
+        });
+    }
+
+    private void _addFlightData(FlightData data) {
+        // Avoid duplicate with different timestamp
+        if (mFlightHistory.size() <= 0 || !data.equals(getCurrentData())) {
+            // Find unnecessary intermediate value if we already have 2 previous values.
+//            if (mFlightHistory.size() > 1) {
+//                int counter = mFlightHistory.size() - 1;
+//                long lastKey = -1;
+//                do {
+//                    lastKey = mFlightHistory.keyAt(counter);
+//                    --counter;
+//                } while (counter >= 1 && lastKey > data.reportTimestampUTC);
+//
+//                if (counter >= 0 && lastKey != -1 && lastKey <= data.reportTimestampUTC) {
+//                    FlightData first = mFlightHistory.get(lastKey);
+//                    FlightData middle = mFlightHistory.get(mFlightHistory.keyAt(counter));
+//                    // We interpolate the value between the last and the first and see if the middle one
+//                    if (middle != null && first != null && data != null) {
+//                        double difference = middle.interpolationDifference(first, data);
+//                        Log.d("Flight", "Difference: " + difference);
+//                        if (difference > .1) {
+//                            mFlightHistory.remove(middle.reportTimestampUTC);
+//                        }
+//                    }
+//                }
+//
+//            }
+            mBounds.update(data.position);
+            mFlightHistory.append(data.reportTimestampUTC, data);
         }
     }
 
@@ -110,7 +187,7 @@ public class Flight {
     public void pullFullFlight() {
         if (TimeProvider.getTime() - mLastFullFlightPulledTime < FULL_FLIGHT_MIN_DELAY)
             return;
-        Log.d("Flight", "Pulling full flight...");
+        Log.d("Flight", "Pulling full flight... " + mFlightID);
         mLastFullFlightPulledTime = TimeProvider.getTime();
         JSONArray array = Webservices.getJSON(APIConstants.APICalls.FLIGHT_DETAILS, "&flightid="+ mFlightID);
         if (array == null)
@@ -130,15 +207,20 @@ public class Flight {
         }
     }
 
-    public LatLng getAproxLocation() {
+    // Interpolate position at timeMs from now.
+    public LatLng getAproxLocation(long timeMs) {
         FlightData current = getCurrentData();
         if (current == null)
             return null;
-        long delta = Math.min(TimeProvider.getTime() - current.reportTimestampUTC, MapsActivity.MAX_INTERPOLATE_DURATION_MS);
+        long delta = TimeProvider.getTime() - current.reportTimestampUTC + timeMs;
         if (current.speed < MapsActivity.MINIMUM_INTERPOLATION_SPEED_KTS || delta <= 0)
             delta = 0;
         double distanceMeter = (current.speed * MapsActivity.KTS_TO_M_PER_S) * (delta / 1000.0);
         return SphericalUtil.computeOffset(current.position, distanceMeter, current.bearing);
+    }
+
+    public LatLng getAproxLocation() {
+        return getAproxLocation(0);
     }
 
     public String getAircraftName() {
@@ -178,10 +260,14 @@ public class Flight {
     }
 
     public void removeMarker() {
-        if (this.mMarker != null) {
-            this.mMarker.remove();
+        if (mMarkerAnimator != null) {
+            MarkerAnimation.stopAnimator(mMarkerAnimator);
+            mMarkerAnimator = null;
         }
-        this.mMarker = null;
+        if (mMarker != null) {
+            mMarker.remove();
+            mMarker = null;
+        }
     }
 
     public void createMarker(GoogleMap map, AirplaneBitmapProvider provider) {
@@ -190,24 +276,48 @@ public class Flight {
 
     private void createMarker(GoogleMap map, AirplaneBitmapProvider provider, boolean selected) {
         // Marker creation needs the user to be set
-        if (mMarker != null)
-            return;
-        Marker marker = map.addMarker(new MarkerOptions()
-                .position(getAproxLocation())
-                .rotation(getCurrentData().bearing.floatValue())
-                .icon(provider.getAsset(this, selected))
-                .anchor(.5f, .5f)
-                .flat(true)); // Flat will keep the rotation based on the north
-        setMarker(marker);
-        if (selected)
-            marker.showInfoWindow();
+        FlightData data = getCurrentData();
+        LatLng pos = getAproxLocation();
+        if (mMarker != null && selected != mIsSelected) {
+            try {
+                mMarker.setIcon(provider.getAsset(this, selected));
+            } catch (Exception e) {
+                e.printStackTrace();
+                mMarker = null;
+            }
+        } else if (mMarker == null) {
+            Marker marker = map.addMarker(new MarkerOptions()
+                    .position(pos)
+                    .rotation(data.bearing.floatValue())
+                    .icon(provider.getAsset(this, selected))
+                    .anchor(.5f, .5f)
+                    .flat(true)); // Flat will keep the rotation based on north
+            setMarker(marker);
+            createMarkerAnimator();
+        }
+        mIsSelected = selected;
+        if (mIsSelected) {
+            mMarker.showInfoWindow();
+            StrokedPolyLine line = getAproxTrail();
+            if (line != null) {
+                line.update(data.speed, data.altitude);
+                line.setPoints(data.position, pos);
+                setAproxTrail(line);
+            } else {
+                setAproxTrail(new StrokedPolyLine(map, data.speed, data.altitude, data.position, pos));
+            }
+        }
     }
 
+    private void createMarkerAnimator() {
+        mMarkerAnimator = MarkerAnimation.animateMarker(mMarker, getAproxLocation(FULL_FLIGHT_MIN_DELAY), FULL_FLIGHT_MIN_DELAY);
+    }
+
+    private void createLineAnimator() {
+        mAproxTrail.setPoints(getCurrentData().position, getAproxLocation());
+        mLineAnimator = MarkerAnimation.animatePolyline(mAproxTrail, getAproxLocation(), getAproxLocation(FULL_FLIGHT_MIN_DELAY), FULL_FLIGHT_MIN_DELAY);
+    }
     public void selectMarker(GoogleMap map, AirplaneBitmapProvider provider, boolean select) {
-        if (mMarker != null) {
-            mMarker.remove();
-            mMarker = null;
-        }
         createMarker(map, provider, select);
     }
 
@@ -233,15 +343,20 @@ public class Flight {
         return mAproxTrail;
     }
 
-    public void setAproxTrail(StrokedPolyLine mAproxTrail) {
-        this.mAproxTrail = mAproxTrail;
+    public void setAproxTrail(StrokedPolyLine aproxTrail) {
+        if (mLineAnimator != null)
+            mLineAnimator.cancel();
+        mAproxTrail = aproxTrail;
+        createLineAnimator();
     }
 
     public void removeAproxTrail() {
-        if (this.mAproxTrail != null) {
-            this.mAproxTrail.remove();
+        if (mAproxTrail != null) {
+            mAproxTrail.remove();
         }
-        this.mAproxTrail = null;
+        MarkerAnimation.stopAnimator(mLineAnimator);
+        mLineAnimator = null;
+        mAproxTrail = null;
     }
 
     public boolean getNeedsUpdate() {
@@ -257,7 +372,7 @@ public class Flight {
     }
 
     public FlightData getCurrentData() {
-        return mFlightHistory.valueAt(mFlightHistory.size() - 1);
+        return mFlightHistory.size() == 0 ? null : mFlightHistory.valueAt(mFlightHistory.size() - 1);
     }
 
     public long getAgeMs() {
@@ -302,7 +417,7 @@ public class Flight {
                 '}';
     }
 
-    public class FlightData {
+    public static class FlightData {
         public LatLng position;
         public Double speed;
         public Double bearing;
@@ -312,6 +427,46 @@ public class Flight {
 
         public boolean isOlderThan(FlightData other) {
             return reportTimestampUTC < other.reportTimestampUTC;
+        }
+
+        // Equals ignores timestamp!!!
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+
+            FlightData that = (FlightData) o;
+
+            if (!position.equals(that.position)) return false;
+            if (!speed.equals(that.speed)) return false;
+            if (!bearing.equals(that.bearing)) return false;
+            if (!altitude.equals(that.altitude)) return false;
+            return verticalSpeed.equals(that.verticalSpeed);
+
+        }
+
+        // Returns a float corresponding to the error [0 - 1]. 0 for 0% error. 1 for 100%.
+        public double interpolationDifference(FlightData before, FlightData after) {
+            // TODO: Make sure before is _BEFORE_ and after is _AFTER_
+            // First look at speed difference
+            double speedError = (speed - ((before.speed + speed + after.speed) / 3.0)) / speed;
+
+            // Then look at altitude difference
+            double altitudeDifference = (altitude - ((before.altitude + altitude + after.altitude) / 3.0)) / altitude;
+
+            // Bearing difference
+            double bearingDifference = (bearing - ((before.bearing + bearing + after.bearing) / 3.0)) / bearing;
+
+            return Math.abs(speedError) + Math.abs(altitudeDifference) + Math.abs(bearingDifference);
+        }
+
+        public FlightData(LatLng position, Double speed, Double bearing, Long reportTimestampUTC, Double altitude, Double verticalSpeed) {
+            this.position = position;
+            this.speed = speed;
+            this.bearing = bearing;
+            this.reportTimestampUTC = ((reportTimestampUTC / 10000000) - 11644473600l) * 1000;
+            this.altitude = altitude;
+            this.verticalSpeed = verticalSpeed;
         }
 
         public FlightData(JSONObject object) throws JSONException {

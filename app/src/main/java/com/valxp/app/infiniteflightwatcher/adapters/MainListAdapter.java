@@ -75,10 +75,10 @@ public class MainListAdapter implements ExpandableListAdapter {
                 Regions.Region region = flight == null ? null : mRegions.regionContainingPoint(flight.getAproxLocation());
                 Regions.Region region2 = flight2 == null ? null : mRegions.regionContainingPoint(flight2.getAproxLocation());
                 if (region == null)
-                    return -1;
+                    return region2 == null ? 0 : -1;
                 if (region2 == null)
                     return 1;
-                return region2.hashCode() - region.hashCode();
+                return region2.getName().compareTo(region.getName());
             }
         });
 
