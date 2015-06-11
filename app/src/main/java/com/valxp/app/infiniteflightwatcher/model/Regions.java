@@ -18,6 +18,7 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polygon;
 import com.google.android.gms.maps.model.PolygonOptions;
+import com.google.android.gms.maps.model.VisibleRegion;
 import com.google.maps.android.SphericalUtil;
 import com.google.maps.android.geometry.Bounds;
 import com.valxp.app.infiniteflightwatcher.R;
@@ -76,9 +77,9 @@ public class Regions extends ArrayList<Regions.Region> {
         }
     }
 
-    public void draw(Context ctx, GoogleMap map, boolean cluster) {
+    public void draw(Context ctx, GoogleMap map, boolean cluster, Bounds camBounds) {
         for (Region region : this) {
-            region.draw(ctx, map, cluster);
+            region.draw(ctx, map, cluster, camBounds);
         }
     }
 
@@ -137,6 +138,7 @@ public class Regions extends ArrayList<Regions.Region> {
         // This should allow us to have everything cleaned-up
         private WeakReference<Heatmap> mHeatMapRef;
         private Map<String, Airport> mAirports;
+        private Map<Airport, Marker> mAirportMarkers = new HashMap<>();
 
         public Region(Context ctx, JSONObject object) throws JSONException {
             mBottomLeft = new LatLng(object.getDouble("LatMin"), object.getDouble("LonMin"));
@@ -210,20 +212,53 @@ public class Regions extends ArrayList<Regions.Region> {
             }
 
         }
-        public void draw(Context ctx, GoogleMap map, boolean cluster) {
-            if (!mMetarDrawn && mMetar != null) {
-                for (Map.Entry<String, Metar> entry : mMetar.entrySet()) {
-                    Metar metar = entry.getValue();
-                    if (metar.getPosition() == null || metar.getWindDir() == null || metar.getRaw() == null)
-                        continue;
-                    map.addMarker(new MarkerOptions()
-                                    .position(metar.getPosition())
-                                    .rotation(metar.getWindDir().floatValue())
-                                    .title(metar.getRaw())
-                    );
+
+        private void drawAirports(Context ctx, GoogleMap map, Boolean cluster) {
+            Utils.Benchmark.start("DrawAirports");
+            if (cluster) {
+                Iterator<Map.Entry<Airport, Marker>> it = mAirportMarkers.entrySet().iterator();
+                while (it.hasNext()) {
+                    it.next().getValue().remove();
+                    it.remove();
                 }
-                mMetarDrawn = true;
+                return;
             }
+            LatLngBounds bounds = map.getProjection().getVisibleRegion().latLngBounds;
+            for (Airport ap : mAirports.values()) {
+                Marker old = mAirportMarkers.get(ap);
+                boolean shouldDraw = (ap.isMajor || map.getCameraPosition().zoom > 9) && bounds.contains(ap.position);
+                if (old == null && shouldDraw) {
+                    mAirportMarkers.put(ap, map.addMarker(new MarkerOptions().position(ap.position).title(ap.name)));
+                } else if (old != null && !shouldDraw) {
+                    mAirportMarkers.remove(ap);
+                    old.remove();
+                }
+            }
+            Utils.Benchmark.stopAndLog("DrawAirports");
+        }
+
+        private void drawMetar(Context ctx, GoogleMap map) {
+            for (Map.Entry<String, Metar> entry : mMetar.entrySet()) {
+                Metar metar = entry.getValue();
+                if (metar.getPosition() == null || metar.getWindDir() == null || metar.getRaw() == null)
+                    continue;
+                map.addMarker(new MarkerOptions()
+                                .position(metar.getPosition())
+                                .rotation(metar.getWindDir().floatValue())
+                                .title(metar.getRaw())
+                );
+            }
+            mMetarDrawn = true;
+        }
+
+        public void draw(Context ctx, GoogleMap map, boolean cluster, Bounds camBounds) {
+            if (!mMetarDrawn && mMetar != null) {
+                drawMetar(ctx, map);
+            }
+
+            if (isContainedIn(camBounds))
+                drawAirports(ctx, map, cluster);
+
             if (mLine == null) {
                 mLine = map.addPolygon(new PolygonOptions()
                         .add(getTopLeft())

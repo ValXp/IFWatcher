@@ -32,18 +32,20 @@ public class StrokedPolyLine {
 
     public void setPoints(LatLng first, LatLng second) {
         LatLng firstOffset = SphericalUtil.interpolate(first, second, .01);
-        List<LatLng> list = mStroke.getPoints();
+        List<LatLng> list;
+        list = mStroke.getPoints();
         if (list == null)
-            list = new ArrayList<LatLng>();
+            list = new ArrayList<>();
         list.clear();
         list.add(first);
         list.add(second);
         mStroke.setPoints(list);
         list = mLine.getPoints();
         if (list == null)
-            list = new ArrayList<LatLng>();
+            list = new ArrayList<>();
         list.clear();
         list.add(firstOffset);
+//        list.add(first);
         list.add(second);
         mLine.setPoints(list);
     }
@@ -62,14 +64,16 @@ public class StrokedPolyLine {
     }
 
     private void construct(GoogleMap map, double speed, double altitude, LatLng first, LatLng second) {
-        PolylineOptions path = new PolylineOptions();
+        PolylineOptions path;
+        path = new PolylineOptions();
         path.zIndex(0);
-        // Should be cheaper to draw
         path.geodesic(false);
+        // Should be cheaper to draw
 
         mStroke = map.addPolyline(path);
 
         path = new PolylineOptions();
+        path.geodesic(false);
         path.zIndex(1);
 
         mLine = map.addPolyline(path);

@@ -30,8 +30,8 @@ public class Fleet {
     private boolean mCleanup = false;
 
     public Fleet() {
-        mFleet = new HashMap<Users.User, Flight>();
-        mFlightsToRemove = new ArrayList<Flight>();
+        mFleet = new HashMap<>();
+        mFlightsToRemove = new ArrayList<>();
         mSelectedServer = null;
         mIsUpToDate = false;
         mUsers = new Users();
@@ -114,6 +114,7 @@ public class Fleet {
         if (tempFlight.getAgeMs() / 1000 > 60 * 3) {
             return;
         }
+        tempFlight.setServer(mSelectedServer);
         Flight found = mFleet.get(tempFlight.getUser());
         if (found == null) {
             tempFlight.getUser().setCurrentFlight(tempFlight);

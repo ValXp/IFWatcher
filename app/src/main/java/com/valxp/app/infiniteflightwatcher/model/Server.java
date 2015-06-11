@@ -14,8 +14,6 @@ import java.util.HashMap;
  * Created by ValXp on 9/1/14.
  */
 public class Server {
-    public static long SERVER_UPDATE_THRESHOLD = 1000 * 60;
-    private static long mLastUpdated = 0;
 
     private String mDescription;
     private String mId;
@@ -24,6 +22,8 @@ public class Server {
     private Integer mType;
     private Long mUserCount;
 
+    public static long SERVER_UPDATE_THRESHOLD = 1000 * 60;
+    private static long mLastUpdated = 0;
 
     public static HashMap<String, Server> getServers(HashMap<String, Server> oldServers) {
         if (TimeProvider.getTime() - mLastUpdated < SERVER_UPDATE_THRESHOLD && oldServers != null) {
@@ -93,8 +93,31 @@ public class Server {
         return mName;
     }
 
-
     public Long getUserCount() {
         return mUserCount;
+    }
+
+    public void setDescription(String mDescription) {
+        this.mDescription = mDescription;
+    }
+
+    public void setId(String mId) {
+        this.mId = mId;
+    }
+
+    public void setMaxUsers(Long mMaxUsers) {
+        this.mMaxUsers = mMaxUsers;
+    }
+
+    public void setName(String mName) {
+        this.mName = mName;
+    }
+
+    public void setType(Integer mType) {
+        this.mType = mType;
+    }
+
+    public void setUserCount(Long mUserCount) {
+        this.mUserCount = mUserCount;
     }
 }

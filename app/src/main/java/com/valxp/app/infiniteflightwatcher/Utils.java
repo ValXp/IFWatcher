@@ -44,4 +44,9 @@ public class Utils {
         }
 
     }
+
+    // Return an approximation of the pixel size in meter from a zoom level
+    public static float meterPerDp(float zoomLevel) {
+        return 40000000 / pxFromDp((float) (256 * Math.pow(2, zoomLevel)));
+    }
 }

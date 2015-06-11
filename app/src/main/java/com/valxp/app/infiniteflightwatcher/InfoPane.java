@@ -2,6 +2,7 @@ package com.valxp.app.infiniteflightwatcher;
 
 import android.animation.LayoutTransition;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
@@ -9,10 +10,8 @@ import android.support.v4.util.LongSparseArray;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.AccelerateInterpolator;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.AnimationSet;
-import android.view.animation.DecelerateInterpolator;
 import android.view.animation.TranslateAnimation;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -41,6 +40,8 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
     private View mImageLayout;
     private View mInnerInfoPane;
     private ImageView mMyLoc;
+    private View mShare;
+    private String mURL = "";
 
     private Map<FlightIds, TextView> mRightTexts;
     private HashMap<UserIds, TextView> mLeftTexts;
@@ -63,7 +64,7 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
 
     public enum UserIds {
         Name,
-        Roles,
+//        Roles,
         Standing,
         XP,
         FlightTime,
@@ -119,6 +120,7 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
         mInnerInfoPane = findViewById(R.id.inner_info_pane);
 
         mMyLoc = (ImageView) findViewById(R.id.my_loc);
+        mShare = findViewById(R.id.share);
 
         mRightPane.setOnClickListener(this);
         mLeftPane.setOnClickListener(this);
@@ -130,9 +132,22 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
                 setFollow(!isFollowing());
             }
         });
+        mShare.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent share = new Intent(android.content.Intent.ACTION_SEND);
+                share.setType("text/plain");
+//                share.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
 
-        mRightTexts = new HashMap<FlightIds, TextView>();
-        mLeftTexts = new HashMap<UserIds, TextView>();
+                share.putExtra(Intent.EXTRA_SUBJECT, "Follow my flight!");
+                share.putExtra(Intent.EXTRA_TEXT, mURL);
+
+                mContext.startActivity(Intent.createChooser(share, "Share Flight"));
+            }
+        });
+
+        mRightTexts = new HashMap<>();
+        mLeftTexts = new HashMap<>();
 
 
         int i = 0;
@@ -219,6 +234,7 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
 
         String color = mFollow ? "#000000" : "#50000000";
         Drawable d = getResources().getDrawable(android.R.drawable.ic_menu_mylocation);
+        assert d != null;
         d.setColorFilter(Color.parseColor(color), PorterDuff.Mode.SRC_ATOP);
         mMyLoc.setImageDrawable(d);
     }
@@ -237,7 +253,7 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
         if (getVisibility() != VISIBLE) {
             setVisibility(VISIBLE);
             TranslateAnimation trans = new TranslateAnimation(-600, 0, 0, 0);
-            trans.setInterpolator(new DecelerateInterpolator());
+//            trans.setInterpolator(new DecelerateInterpolator());
             trans.setDuration(500);
             trans.setFillAfter(false);
             AlphaAnimation alpha = new AlphaAnimation(0, 1);
@@ -295,7 +311,7 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
             mLeftTexts.get(UserIds.Violations).setText("Violations: " + user.getViolations());
             mLeftTexts.get(UserIds.OnlineFlights).setText("Online Flights : " + user.getOnlineFlights());
         } else {
-            mLeftTexts.get(UserIds.Roles).setText("Loading...");
+//            mLeftTexts.get(UserIds.Roles).setText("Loading...");
             mLeftTexts.get(UserIds.Standing).setText("Loading...");
             mLeftTexts.get(UserIds.XP).setText("Loading...");
             mLeftTexts.get(UserIds.FlightTime).setText("Loading...");
@@ -307,6 +323,7 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
 //        mInnerInfoPane.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
         mImageLayout.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
 //        mMyLoc.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
+        mURL = "http://www.liveflightapp.com/?f=" + flight.getFlightID() + "&s=" + flight.getServer().getId();
         return true;
     }
 
@@ -314,7 +331,7 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
         if (getVisibility() != View.GONE) {
             setVisibility(View.GONE);
             TranslateAnimation trans = new TranslateAnimation(0, -400, 0, 0);
-            trans.setInterpolator(new AccelerateInterpolator());
+//            trans.setInterpolator(new AccelerateInterpolator());
             trans.setDuration(500);
             trans.setFillAfter(false);
             AlphaAnimation alpha = new AlphaAnimation(1, 0);

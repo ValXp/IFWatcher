@@ -23,6 +23,17 @@
             android:configChanges="orientation|keyboard|keyboardHidden|screenSize"
             android:label="@string/title_activity_maps"
             android:screenOrientation="fullSensor" >
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http"
+                    android:host="liveflightapp.com"
+                    />
+                <data android:scheme="http"
+                    android:host="www.liveflightapp.com"
+                    />
+            </intent-filter>
         </activity>
 
         <meta-data

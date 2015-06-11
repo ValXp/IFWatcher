@@ -26,12 +26,12 @@ import java.util.HashMap;
 public class ServerChooserActivity extends Activity {
     public static final String INTENT_SERVER_ID = "INTENT_SERVER_ID";
 
-    private View mLoadingContainer;
     private RecyclerView mServerListView;
 
     private ServerListAdapter mServerListAdapter;
     private HashMap<String, Server> mServers;
     private Thread mThread;
+    private TextView mTitleText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,7 +39,8 @@ public class ServerChooserActivity extends Activity {
         Utils.initContext(this);
         setContentView(R.layout.activity_server_chooser);
         mServerListView = (RecyclerView) findViewById(R.id.server_list);
-        mLoadingContainer = findViewById(R.id.loading_container);
+        mTitleText = (TextView) findViewById(R.id.server_chooser_title);
+        mTitleText.setText(R.string.connecting_to_if);
 
         mServers = null;
         mServerListAdapter = new ServerListAdapter();
@@ -47,7 +48,6 @@ public class ServerChooserActivity extends Activity {
         mServerListView.setLayoutManager(new LinearLayoutManager(this));
 
         mServerListView.setVisibility(View.GONE);
-        mLoadingContainer.setVisibility(View.VISIBLE);
 
         mThread = new Thread(new Runnable() {
             @Override
@@ -63,7 +63,7 @@ public class ServerChooserActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        mLoadingContainer.setVisibility(View.GONE);
+                        mTitleText.setText(R.string.please_choose_a_server);
                         mServerListView.setVisibility(View.VISIBLE);
                         mServerListView.invalidate();
                     }
@@ -128,6 +128,7 @@ public class ServerChooserActivity extends Activity {
             public ServerViewHolder(View itemView) {
                 super(itemView);
                 mCard = (CardView)itemView;
+                mCard.setCardElevation(Utils.pxFromDp(5));
                 mCard.setOnClickListener(this);
                 mTitle = (TextView) mCard.findViewById(R.id.server_title);
                 mPlayerCount = (TextView) mCard.findViewById(R.id.player_count);
