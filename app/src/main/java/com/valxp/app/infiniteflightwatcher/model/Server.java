@@ -32,10 +32,10 @@ public class Server {
         mLastUpdated = TimeProvider.getTime();
         HashMap<String, Server> servers = oldServers;
         if (servers == null)
-            servers = new HashMap<String, Server>();
+            servers = new HashMap<>();
         JSONArray array = Webservices.getJSON(APIConstants.APICalls.SESSIONS_INFO);
         if (array == null) {
-            mLastUpdated = (long) (TimeProvider.getTime() - SERVER_UPDATE_THRESHOLD + (1000 * 10));
+            mLastUpdated = TimeProvider.getTime() - SERVER_UPDATE_THRESHOLD + (1000 * 10);
             return servers;
         }
         try {

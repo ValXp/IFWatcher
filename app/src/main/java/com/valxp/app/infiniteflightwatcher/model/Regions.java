@@ -6,6 +6,8 @@ import android.graphics.Canvas;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,6 +23,8 @@ import com.google.android.gms.maps.model.PolygonOptions;
 import com.google.android.gms.maps.model.VisibleRegion;
 import com.google.maps.android.SphericalUtil;
 import com.google.maps.android.geometry.Bounds;
+import com.valxp.app.infiniteflightwatcher.AirplaneBitmapProvider;
+import com.valxp.app.infiniteflightwatcher.AirportBitmapProvider;
 import com.valxp.app.infiniteflightwatcher.R;
 import com.valxp.app.infiniteflightwatcher.TimeProvider;
 import com.valxp.app.infiniteflightwatcher.Utils;
@@ -39,6 +43,7 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -97,6 +102,16 @@ public class Regions extends ArrayList<Regions.Region> {
         }
     }
 
+    public View getInfoWindow(Context ctx, Map<String, List<ATC>> atcs, Marker marker) {
+        for (Region region : this) {
+            View v = region.getInfoWindow(ctx, atcs, marker);
+            if (v != null)
+                return v;
+        }
+
+        return null;
+    }
+
     public Region regionContainingPoint(LatLng position) {
         for (Region region : this) {
             if (region.contains(position))
@@ -139,6 +154,7 @@ public class Regions extends ArrayList<Regions.Region> {
         private WeakReference<Heatmap> mHeatMapRef;
         private Map<String, Airport> mAirports;
         private Map<Airport, Marker> mAirportMarkers = new HashMap<>();
+
 
         public Region(Context ctx, JSONObject object) throws JSONException {
             mBottomLeft = new LatLng(object.getDouble("LatMin"), object.getDouble("LonMin"));
@@ -228,7 +244,7 @@ public class Regions extends ArrayList<Regions.Region> {
                 Marker old = mAirportMarkers.get(ap);
                 boolean shouldDraw = (ap.isMajor || map.getCameraPosition().zoom > 9) && bounds.contains(ap.position);
                 if (old == null && shouldDraw) {
-                    mAirportMarkers.put(ap, map.addMarker(new MarkerOptions().position(ap.position).title(ap.name)));
+                    mAirportMarkers.put(ap, map.addMarker(new MarkerOptions().position(ap.position).title(ap.name).icon(AirportBitmapProvider.getAsset(ctx, ap))));
                 } else if (old != null && !shouldDraw) {
                     mAirportMarkers.remove(ap);
                     old.remove();
@@ -377,11 +393,80 @@ public class Regions extends ArrayList<Regions.Region> {
 
         // Returns true if event consumed
         public boolean onMarkerClick(Context ctx, GoogleMap map, Marker marker) {
-            if (marker != null && mMarker != null && mMarker.equals(marker)) {
-                zoomOnRegion(ctx, map);
-                return true;
+            if (marker != null) {
+                if (mMarker != null && mMarker.equals(marker)) {
+                    zoomOnRegion(ctx, map);
+                    return true;
+                }
+                for (Marker ap : mAirportMarkers.values()) {
+                    if (ap.equals(marker)) {
+                        Log.d("Regions", "Airport marker click!");
+                        if (ap.isInfoWindowShown()) {
+                            ap.hideInfoWindow();
+                            Log.d("Regions", "Hide infoWindow");
+                        }
+                        else {
+                            ap.showInfoWindow();
+                            Log.d("Regions", "Show infoWindow");
+                        }
+                        return true;
+                    }
+                }
             }
             return false;
+        }
+
+        public View getInfoWindow(Context ctx, Map<String, List<ATC>> atcs, Marker marker) {
+            for (Map.Entry<Airport, Marker> entry : mAirportMarkers.entrySet()) {
+                Marker apMarker = entry.getValue();
+                Airport ap = entry.getKey();
+                if (apMarker.equals(marker)) {
+                    Log.d("Regions", "Building infowindow!");
+                    LinearLayout mainLayout = Utils.createLinearLayout(ctx);
+                    TextView title = Utils.createTextView(ctx, ap.name + " (" + ap.ICAO + ")");
+                    title.setTextSize(15);
+                    mainLayout.addView(title);
+                    mainLayout.addView(Utils.createTextView(ctx, "Elev: " + (int)ap.elevation + "ft"));
+                    // Try to find ATC
+                    if (atcs != null) {
+                        List<ATC> myAtcs = atcs.get(ap.ICAO);
+                        if (myAtcs != null && myAtcs.size() > 0) {
+                            TextView ATCTitle = Utils.createTextView(ctx, myAtcs.size() + " ATC:");
+                            mainLayout.addView(ATCTitle);
+                            LinearLayout ATCLayout = Utils.createLinearLayout(ctx);
+                            LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) ATCLayout.getLayoutParams();
+                            lp.setMargins((int) Utils.dpToPx(10), 0, 0, 0);
+                            ATCLayout.setLayoutParams(lp);
+                            for (ATC atc : myAtcs) {
+                                TextView text = Utils.createTextView(ctx, atc.type.name() + ": " + atc.user.getName());
+                                ATCLayout.addView(text);
+                            }
+                            mainLayout.addView(ATCLayout);
+                        }
+                        if (ap.runways.size() > 0) {
+                            mainLayout.addView(Utils.createTextView(ctx, ap.runways.size() + " Runways:"));
+                            LinearLayout runwayLayout = Utils.createLinearLayout(ctx);
+                            LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) runwayLayout.getLayoutParams();
+                            lp.setMargins((int) Utils.dpToPx(10), 0, 0, 0);
+                            runwayLayout.setLayoutParams(lp);
+                            for (Airport.Runway runway : ap.runways) {
+                                TextView text = Utils.createTextView(ctx, runway.nameBegin + "/" + runway.nameEnd + ": Length: " + runway.length + "ft");
+                                runwayLayout.addView(text);
+                            }
+                            mainLayout.addView(runwayLayout);
+                        }
+                        Metar metar = mMetar.get(ap.ICAO);
+                        if (metar != null) {
+                            TextView text = Utils.createTextView(ctx, "METAR: " + metar.getRaw());
+                            text.setMaxWidth((int) Utils.dpToPx(300));
+                            mainLayout.addView(text);
+                        }
+                    }
+
+                    return mainLayout;
+                }
+            }
+            return null;
         }
 
         public void zoomOnRegion(Context ctx, GoogleMap map, GoogleMap.CancelableCallback callback) {
