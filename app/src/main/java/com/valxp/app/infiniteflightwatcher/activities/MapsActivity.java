@@ -1,7 +1,5 @@
 package com.valxp.app.infiniteflightwatcher.activities;
 
-import android.animation.ObjectAnimator;
-import android.animation.ValueAnimator;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -15,7 +13,6 @@ import android.support.v4.app.FragmentActivity;
 import android.support.v4.util.LongSparseArray;
 import android.support.v4.widget.DrawerLayout;
 import android.util.Log;
-import android.util.Pair;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -50,6 +47,7 @@ import com.valxp.app.infiniteflightwatcher.TouchableMapFragment;
 import com.valxp.app.infiniteflightwatcher.Utils;
 import com.valxp.app.infiniteflightwatcher.adapters.MainListAdapter;
 import com.valxp.app.infiniteflightwatcher.heatmap.HeatMapTileProvider;
+import com.valxp.app.infiniteflightwatcher.model.ATC;
 import com.valxp.app.infiniteflightwatcher.model.Fleet;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
 import com.valxp.app.infiniteflightwatcher.model.Regions;
@@ -106,6 +104,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private Flight mSelectedFlight = null;
     private CameraChangeRunnable mCameraChangeRunnable = new CameraChangeRunnable();
     private float mMeterPerDpZoom = 0;
+    private Map<String, List<ATC>> mAtcs = null;
 
 
 
@@ -159,7 +158,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             @Override
             public void onDrawerSlide(View drawerView, float slideOffset) {
                 FrameLayout.LayoutParams params = (FrameLayout.LayoutParams) mDrawerHandle.getLayoutParams();
-                params.setMargins((int) Utils.pxFromDp(-6 - slideOffset * 20), (int) Utils.pxFromDp(5), 0, 0);
+                params.setMargins((int) Utils.dpToPx(-6 - slideOffset * 20), (int) Utils.dpToPx(5), 0, 0);
                 mDrawerHandle.setLayoutParams(params);
             }
 
@@ -294,6 +293,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 }
             }
         };
+        mMap.setInfoWindowAdapter(new CustomInfoWindowAdapter());
         refreshUINow();
         Utils.Benchmark.stopAndLog("onResume");
     }
@@ -367,9 +367,10 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 if (!showInfoPane(mSelectedFlight))
                     mLastTimeInfoUpdated += REFRESH_INFO_MS;
                 if (mInfoPane.isFollowing())
-                    mMap.animateCamera(CameraUpdateFactory.newLatLng(mSelectedFlight.getAproxLocation(REFRESH_UI_MS)), REFRESH_UI_MS, null);
+                    mMap.animateCamera(CameraUpdateFactory.newLatLng(mSelectedFlight.getAproxLocation(REFRESH_UI_MS)), REFRESH_UI_MS / 2, null);
             }
         }
+        drawPlanes(mMap.getProjection().getVisibleRegion().latLngBounds);
         Utils.Benchmark.stopAndLog("updateMap");
     }
 
@@ -434,7 +435,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 do {
                     pos2 = history.valueAt(historyCursor);
                     historyCursor++;
-                } while (historyCursor < history.size() && (!bounds.contains(pos2.position) ||
+                } while (historyCursor < history.size() && ((!bounds.contains(pos1.position) && !bounds.contains(pos2.position)) ||
                         SphericalUtil.computeDistanceBetween(pos1.position, pos2.position) < minDistance));
 
                 if (pos1 != null && pos2 != null) {
@@ -450,6 +451,17 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                         }
                     }
                     trailCursor++;
+                    if (!bounds.contains(pos2.position) && historyCursor < history.size() - 1) {
+                        do {
+                            pos2 = history.valueAt(historyCursor);
+                            ++historyCursor;
+                        } while (historyCursor < history.size() - 1 && !bounds.contains(pos2.position));
+                        // But we still want to have one line that crosses the edge
+                        if (historyCursor < history.size() - 1 && historyCursor > 1) {
+                            historyCursor -= 2;
+                            pos2 = history.valueAt(historyCursor);
+                        }
+                    }
                 }
             }
             if (trailCursor < trail.size() - 1) {
@@ -818,6 +830,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                         mFleet.selectServer(mServers.get(mServerId));
                 }
 
+                mAtcs = ATC.getATC(mFleet.getSelectedServer());
+
                 final Runnable toRunOnUI = mFleet.updateFleet(FLIGHT_MAX_LIFETIME_SECONDS);
                 mRegions.updateCount(mFleet);
                 runOnUiThread(new Runnable() {
@@ -864,6 +878,22 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         public void interrupt() {
             requestStop();
         }
+
     }
 
+    private class CustomInfoWindowAdapter implements GoogleMap.InfoWindowAdapter {
+        @Override
+        public View getInfoWindow(Marker marker) {
+            return null;
+        }
+
+        @Override
+        public View getInfoContents(Marker marker) {
+            View v = null;
+            if (mRegions != null && marker != null) {
+                v = mRegions.getInfoWindow(MapsActivity.this, mAtcs, marker);
+            }
+            return v;
+        }
+    }
 }

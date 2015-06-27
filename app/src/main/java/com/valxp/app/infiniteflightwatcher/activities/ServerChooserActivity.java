@@ -128,7 +128,7 @@ public class ServerChooserActivity extends Activity {
             public ServerViewHolder(View itemView) {
                 super(itemView);
                 mCard = (CardView)itemView;
-                mCard.setCardElevation(Utils.pxFromDp(5));
+                mCard.setCardElevation(Utils.dpToPx(5));
                 mCard.setOnClickListener(this);
                 mTitle = (TextView) mCard.findViewById(R.id.server_title);
                 mPlayerCount = (TextView) mCard.findViewById(R.id.player_count);

@@ -5,6 +5,7 @@ import android.util.Log;
 import com.google.android.gms.maps.model.Marker;
 import com.valxp.app.infiniteflightwatcher.APIConstants;
 import com.valxp.app.infiniteflightwatcher.StrokedPolyLine;
+import com.valxp.app.infiniteflightwatcher.Utils;
 import com.valxp.app.infiniteflightwatcher.Webservices;
 
 import org.json.JSONArray;
@@ -99,6 +100,7 @@ public class Fleet {
     synchronized private void parseFlightList(JSONArray array) {
         if (array == null)
             return;
+        Utils.Benchmark.start("Fleet JSON parsing");
         try {
             for (int i = 0; i < array.length(); ++i) {
                 parseFlight(array.getJSONObject(i));
@@ -106,6 +108,7 @@ public class Fleet {
         } catch (JSONException e) {
             e.printStackTrace();
         }
+        Utils.Benchmark.stopAndLog("Fleet JSON parsing");
     }
 
 
