@@ -27,7 +27,7 @@ public class TimeProvider {
                     SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
                     sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
                     mTimeOffset = sdf.parse(reader.readLine()).getTime() - System.currentTimeMillis();
-                    Log.d("TimeProvider", "Time updated from server. Offset : " + mTimeOffset);
+                    Log.d("TimeProvider", "Time updated from server. Offset : " + mTimeOffset + "ms");
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

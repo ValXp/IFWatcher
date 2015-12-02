@@ -419,7 +419,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             int historyCursor = 0;
             int trailCursor = 0;
             float minDistance = mMeterPerDpZoom * 50;
-            Log.d("UpdatePath", "minDistance : " + minDistance);
             Flight.FlightData pos1, pos2 = null;
             do {
                 pos2 = history.valueAt(historyCursor);
@@ -613,7 +612,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
     @Override
     public void onCameraChange(CameraPosition cameraPosition) {
-        Log.d("OnCameraChange", "OnCameraChange called");
         // Delaying by onCameraChangeEvent to avoid receiving too many successive calls.
         if (mUIHandler != null && mCameraChangeRunnable != null) {
             mUIHandler.removeCallbacks(mCameraChangeRunnable);
