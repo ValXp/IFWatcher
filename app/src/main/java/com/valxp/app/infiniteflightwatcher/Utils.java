@@ -6,6 +6,7 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,11 +23,11 @@ public class Utils {
     public static int dpToPx(float dp) {
         return (int) (dp * mContext.getResources().getDisplayMetrics().density);
     }
-    public static float pxToDp(float px) {
+    public static float pxToDp(int px) {
         return px / mContext.getResources().getDisplayMetrics().density;
     }
     public static class Benchmark {
-        private static Map<String, Long> mTimers = new HashMap<>();
+        private static Map<String, Long> mTimers = Collections.synchronizedMap(new HashMap<String, Long>());
 
         public static void start(String name) {
             mTimers.put(name, 0l);
@@ -34,13 +35,15 @@ public class Utils {
         }
 
         public static void stopAndLog(String name) {
-            Log.d("Benchmark", name + " took " + (stop(name) / 1000000) + "ms");
+            if (BuildConfig.DEBUG) {
+                Log.d("Benchmark", name + " took " + (stop(name) / 1000000) + "ms");
+            }
         }
 
         public static long stop(String name) {
             Long value = mTimers.get(name);
             if (value != null) {
-//                mTimers.remove(name);
+                mTimers.remove(name);
                 return System.nanoTime() - value;
             }
             return -1;
