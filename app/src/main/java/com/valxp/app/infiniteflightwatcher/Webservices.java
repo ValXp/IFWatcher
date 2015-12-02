@@ -7,20 +7,16 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLConnection;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,10 +35,10 @@ public class Webservices {
 
     public static JSONArray getJSON(APIConstants.APICalls call, String get, String post) {
         try {
-            long startTime = TimeProvider.getTime();
+            String benchName = call.name();
+            Utils.Benchmark.start(benchName);
             JSONArray arr = new JSONArray(connectionToString(fetch(call, get, post)));
-            long delta = TimeProvider.getTime() - startTime;
-            Log.d("Webservice", "Request to '" + call.name() + "' took " + delta + "ms");
+            Utils.Benchmark.stopAndLog(benchName);
             return arr;
         } catch (Exception e) {
             e.printStackTrace();
@@ -52,11 +48,11 @@ public class Webservices {
 
     public static XmlPullParser getXML(APIConstants.APICalls call, String get, String post) {
         try {
-            long startTime = TimeProvider.getTime();
+            String benchName = call.name();
+            Utils.Benchmark.start(benchName);
             XmlPullParser parser = XmlPullParserFactory.newInstance().newPullParser();
             parser.setInput(fetch(call, get, post), null);
-            long delta = TimeProvider.getTime() - startTime;
-            Log.d("Webservice", "Request to '" + call.name() + "' took " + delta + "ms");
+            Utils.Benchmark.stopAndLog(benchName);
             return parser;
         } catch (Exception e) {
             e.printStackTrace();
