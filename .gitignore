@@ -1,7 +1,8 @@
 # Created by http://www.gitignore.io
 
 localSigning.properties
-app/src/main/java/com/valxp/app/infiniteflightwatcher/APIConstants.java
+app/src/debug/res/values/api_keys.xml
+app/src/release/res/values/api_keys.xml
 
 ### Android ###
 # Built application files
