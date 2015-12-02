@@ -15,10 +15,13 @@ import android.widget.TextView;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
+import com.valxp.app.infiniteflightwatcher.APIConstants;
 import com.valxp.app.infiniteflightwatcher.AppUpdater;
 import com.valxp.app.infiniteflightwatcher.R;
 import com.valxp.app.infiniteflightwatcher.TimeProvider;
 import com.valxp.app.infiniteflightwatcher.Utils;
+import com.valxp.app.infiniteflightwatcher.caching.FileDiskCache;
+import com.valxp.app.infiniteflightwatcher.model.Liveries;
 import com.valxp.app.infiniteflightwatcher.model.Server;
 
 import java.util.HashMap;
@@ -32,6 +35,7 @@ public class ServerChooserActivity extends Activity {
     private HashMap<String, Server> mServers;
     private Thread mThread;
     private TextView mTitleText;
+    FileDiskCache mDiskCache;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -41,6 +45,7 @@ public class ServerChooserActivity extends Activity {
         mServerListView = (RecyclerView) findViewById(R.id.server_list);
         mTitleText = (TextView) findViewById(R.id.server_chooser_title);
         mTitleText.setText(R.string.connecting_to_if);
+        mDiskCache = new FileDiskCache(this, "data_cache", APIConstants.APICalls.LIVERIES);
 
         mServers = null;
         mServerListAdapter = new ServerListAdapter();
@@ -52,6 +57,8 @@ public class ServerChooserActivity extends Activity {
         mThread = new Thread(new Runnable() {
             @Override
             public void run() {
+                String path = mDiskCache.getFilePath("airplanes.txt");
+                Liveries.initLiveries(ServerChooserActivity.this, path);
                 while (mServers == null) {
                     mServers = Server.getServers(mServers);
                     try {

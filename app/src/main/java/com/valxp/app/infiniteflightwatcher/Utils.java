@@ -19,8 +19,8 @@ public class Utils {
         mContext = ctx;
     }
 
-    public static float dpToPx(float dp) {
-        return dp * mContext.getResources().getDisplayMetrics().density;
+    public static int dpToPx(float dp) {
+        return (int) (dp * mContext.getResources().getDisplayMetrics().density);
     }
     public static float pxToDp(float px) {
         return px / mContext.getResources().getDisplayMetrics().density;
@@ -29,12 +29,12 @@ public class Utils {
         private static Map<String, Long> mTimers = new HashMap<>();
 
         public static void start(String name) {
-            mTimers.put(name, new Long(0));
+            mTimers.put(name, 0l);
             mTimers.put(name, System.nanoTime());
         }
 
         public static void stopAndLog(String name) {
-            Log.d("Benchmark", name + " took " + (stop(name) / 1000) + "us");
+            Log.d("Benchmark", name + " took " + (stop(name) / 1000000) + "ms");
         }
 
         public static long stop(String name) {

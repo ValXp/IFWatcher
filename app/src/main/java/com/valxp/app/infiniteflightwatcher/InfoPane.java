@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
+import android.os.AsyncTask;
 import android.support.v4.util.LongSparseArray;
 import android.util.AttributeSet;
 import android.view.View;
@@ -15,9 +16,11 @@ import android.view.animation.AnimationSet;
 import android.view.animation.TranslateAnimation;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.valxp.app.infiniteflightwatcher.caching.DrawableMemoryCache;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
 import com.valxp.app.infiniteflightwatcher.model.Users;
 
@@ -39,6 +42,7 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
     private TextView mTapToSeeMore;
     private View mImageLayout;
     private View mInnerInfoPane;
+    private ProgressBar mDownloadProgress;
     private ImageView mMyLoc;
     private View mShare;
     private String mURL = "";
@@ -49,6 +53,8 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
     private boolean mIsFullyDisplayed = false;
     private boolean mFollow;
     private LayoutTransition mTransition;
+    private DrawableMemoryCache mPlaneImageCache;
+    private PlaneDownloaderTask mPlaneImageDownloader;
 
 
     public enum FlightIds{
@@ -75,16 +81,19 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
     public InfoPane(Context context) {
         super(context);
         mContext = context;
+        mPlaneImageCache = new DrawableMemoryCache(mContext, "plane_images", APIConstants.APICalls.LIVERY_PREVIEWS);
     }
 
     public InfoPane(Context context, AttributeSet attrs) {
         super(context, attrs);
         mContext = context;
+        mPlaneImageCache = new DrawableMemoryCache(mContext, "plane_images", APIConstants.APICalls.LIVERY_PREVIEWS);
     }
 
     public InfoPane(Context context, AttributeSet attrs, int defStyle) {
         super(context, attrs, defStyle);
         mContext = context;
+        mPlaneImageCache = new DrawableMemoryCache(mContext, "plane_images", APIConstants.APICalls.LIVERY_PREVIEWS);
     }
 
     @Override
@@ -113,6 +122,7 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
         mLeftPane.setLayoutTransition(mTransition);
 
         mPlaneImage = (ImageView) findViewById(R.id.plane_image);
+        mDownloadProgress = (ProgressBar) findViewById(R.id.downloadProgress);
         mTapToSeeMore = (TextView) findViewById(R.id.tap_to_see_more);
 
         mImageLayout = findViewById(R.id.image_layout);
@@ -192,24 +202,47 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
             mRightPane.addView(newSeparator(text));
     }
 
-    private void updatePlaneImage(Flight flight) {
-        String plane = flight.getAircraftName();
-        plane = plane.replace(" ", "_").replace("-", "_").replace("/", "_").toLowerCase();
-        plane = "image_" + plane;
-
-        Field[] fields = R.drawable.class.getDeclaredFields();
-        for (Field field : fields) {
-            if (field.getName().equals(plane)) {
-                try {
-                    mPlaneImage.setImageResource(field.getInt(R.drawable.class));
-                    mPlaneImage.setVisibility(View.VISIBLE);
-                    return;
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                }
-            }
+    private class PlaneDownloaderTask extends AsyncTask<String, Void, Drawable> {
+        protected Drawable doInBackground(String... strings) {
+            String flightId = strings[0];
+            return mPlaneImageCache.getDrawable(flightId, true);
         }
+
+        protected void onPostExecute(Drawable drawable) {
+            if (drawable == null) {
+                mPlaneImage.setImageResource(R.drawable.default_livery);
+            } else {
+                mPlaneImage.setImageDrawable(drawable);
+            }
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(Utils.dpToPx(180), Utils.dpToPx(108));
+            mPlaneImage.setLayoutParams(params);
+            mPlaneImage.setVisibility(View.VISIBLE);
+            mDownloadProgress.setVisibility(View.GONE);
+        }
+    }
+
+    private String lastId;
+    private void updatePlaneImage(Flight flight) {
+        String liveryId = flight.getLivery().getId();
+        if (liveryId.equals(lastId)) {
+            return;
+        }
+        lastId = liveryId;
+        if (mPlaneImageDownloader != null)
+            mPlaneImageDownloader.cancel(true);
         mPlaneImage.setVisibility(View.GONE);
+        mDownloadProgress.setVisibility(View.VISIBLE);
+        Drawable drawable = mPlaneImageCache.getDrawable(liveryId);
+        if (drawable != null) {
+            mPlaneImage.setImageDrawable(drawable);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(Utils.dpToPx(180), Utils.dpToPx(108));
+            mPlaneImage.setLayoutParams(params);
+            mPlaneImage.setVisibility(View.VISIBLE);
+            mDownloadProgress.setVisibility(View.GONE);
+        } else {
+            mPlaneImageDownloader = new PlaneDownloaderTask();
+            mPlaneImageDownloader.execute(liveryId);
+        }
     }
 
     @Override

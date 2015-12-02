@@ -84,8 +84,14 @@
                     android:id="@+id/plane_image"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:src="@drawable/image_boeing_717_200"
+                    android:src="@drawable/default_livery"
                 />
+                <ProgressBar
+                    android:id="@+id/downloadProgress"
+                    android:layout_margin="40dp"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    />
                 <TextView
                     android:id="@+id/tap_to_see_more"
                     android:textColor="@android:color/black"
