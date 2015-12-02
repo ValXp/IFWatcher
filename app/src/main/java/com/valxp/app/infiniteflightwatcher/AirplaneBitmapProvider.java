@@ -6,6 +6,8 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.ScaleDrawable;
+import android.view.Gravity;
 
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
@@ -60,12 +62,14 @@ public class AirplaneBitmapProvider {
         if (data != null) {
             shadowDistance = (float) (Math.min(data.altitude, 50000) / 400000.0); // When matthieu visits ISS
         }
-        int widthOffset = (int) (drawable.getIntrinsicWidth() * shadowDistance);
-        int heightOffset = (int) (drawable.getIntrinsicHeight() * shadowDistance);
+        int drawableWidth = Utils.dpToPx(32);
+        int drawableHeight = Utils.dpToPx(32);
+        int widthOffset = (int) (drawableWidth * shadowDistance);
+        int heightOffset = (int) (drawableHeight * shadowDistance);
 
         int shadowColor = selected ? Color.parseColor("#88222222") : Color.parseColor("#88000000");
 
-        Bitmap bitmap = Bitmap.createBitmap(drawable.getIntrinsicWidth(), drawable.getIntrinsicHeight(), Bitmap.Config.ARGB_4444);
+        Bitmap bitmap = Bitmap.createBitmap(drawableWidth, drawableHeight, Bitmap.Config.ARGB_4444);
         Canvas canvas = new Canvas(bitmap);
         drawable.setColorFilter(shadowColor, PorterDuff.Mode.SRC_IN);
         drawable.setBounds(widthOffset, heightOffset, canvas.getWidth(), canvas.getHeight());
