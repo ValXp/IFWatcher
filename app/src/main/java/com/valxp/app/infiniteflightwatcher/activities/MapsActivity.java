@@ -195,7 +195,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
 
         mFleet = new Fleet();
-        mRegions = new Regions(this);
+        mRegions = Regions.getInstance(this);
         mBitmapProvider = new AirplaneBitmapProvider(this);
 
 
