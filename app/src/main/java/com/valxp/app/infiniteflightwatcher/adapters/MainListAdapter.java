@@ -243,7 +243,7 @@ public class MainListAdapter implements ExpandableListAdapter {
                     view.setTag(null);
                 } else {
                     subname.setVisibility(View.VISIBLE);
-                    subname.setText(flight.getAircraftName());
+                    subname.setText(flight.getLivery().getPlaneName());
                     view.setTag(user.getCurrentFlight());
                     region = mRegions.regionContainingPoint(flight.getAproxLocation());
                     if (region == null) {

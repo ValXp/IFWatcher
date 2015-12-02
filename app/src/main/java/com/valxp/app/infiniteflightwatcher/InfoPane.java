@@ -54,24 +54,23 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
     public enum FlightIds{
         CallSign,
         Plane,
+        Livery,
         Speed,
         Altitude,
         FlightDuration,
         TotalDistance,
-        EndToEndDistance,
         LastReport
-    };
+    }
 
     public enum UserIds {
         Name,
-//        Roles,
         Standing,
         XP,
         FlightTime,
         LandingCount,
         Violations,
         OnlineFlights
-    };
+    }
 
     public InfoPane(Context context) {
         super(context);
@@ -274,7 +273,8 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
         int fpm = (int)Math.round(lastData.verticalSpeed);
         String sign = fpm > 0 ? "+":"";
         mRightTexts.get(FlightIds.CallSign).setText(flight.getCallSign());
-        mRightTexts.get(FlightIds.Plane).setText(flight.getAircraftName());
+        mRightTexts.get(FlightIds.Plane).setText(flight.getLivery().getPlaneName());
+        mRightTexts.get(FlightIds.Livery).setText(flight.getLivery().getName());
         mRightTexts.get(FlightIds.Speed).setText(Math.round(lastData.speed) + " kts");
         mRightTexts.get(FlightIds.Altitude).setText(Math.round(lastData.altitude) + " feet (" + sign + fpm + " fpm)");
         String lastUpdate = "";
@@ -289,7 +289,6 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
         }
         mRightTexts.get(FlightIds.FlightDuration).setText("Duration: " + (history.valueAt(0).getAgeMs() / 60000) + "m");
         mRightTexts.get(FlightIds.TotalDistance).setText("Distance: " + (int)flight.getFlightAbsoluteDistance() + "NM");
-        mRightTexts.get(FlightIds.EndToEndDistance).setText("End to end: " + (int)flight.getEndToEndDistance() + "NM");
         mRightTexts.get(FlightIds.LastReport).setText(lastUpdate);
 
         int bgDrawable = R.drawable.shadowed_ui_background;

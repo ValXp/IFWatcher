@@ -34,11 +34,11 @@ public class Flight {
     public static Activity ctx;
     public static double METERS_TO_NAUTICAL_MILES = 0.000539957;
     public static long FULL_FLIGHT_MIN_DELAY = 2 * 60 * 1000; // MS
-    private String mAircraftName;
     private String mCallSign;
     private String mDisplayName;
     private String mFlightID;
     private String mUserID;
+    private Liveries.Livery mLivery;
     private Long mLastReportUTC;
     private Users.User mUser;
     private Bounds mBounds;
@@ -97,10 +97,10 @@ public class Flight {
     public Flight(Users users, JSONObject object) throws JSONException {
         mFlightHistory = new LongSparseArray<FlightData>();
         FlightData data = new FlightData(object);
-        mAircraftName = object.getString("AircraftName");
         mCallSign = object.getString("CallSign");
         mDisplayName = object.getString("DisplayName");
         mFlightID = object.getString("FlightID");
+        mLivery = Liveries.getLivery(object.getString("LiveryID"));
         mUserID = object.getString("UserID");
 
         mLastReportUTC = data.reportTimestampUTC;
@@ -147,7 +147,7 @@ public class Flight {
                         createLineAnimator();
                 }
                 if (mIsSelected)
-                    ((MapsActivity)ctx).updatePath(Flight.this);
+                    ((MapsActivity) ctx).updatePath(Flight.this);
             }
         });
     }
@@ -223,10 +223,6 @@ public class Flight {
         return getAproxLocation(0);
     }
 
-    public String getAircraftName() {
-        return mAircraftName;
-    }
-
     public String getCallSign() {
         return mCallSign;
     }
@@ -245,6 +241,10 @@ public class Flight {
 
     public String getFlightID() {
         return mFlightID;
+    }
+
+    public Liveries.Livery getLivery() {
+        return mLivery;
     }
 
     public LongSparseArray<FlightData> getFlightHistory() {
@@ -408,11 +408,11 @@ public class Flight {
     public String toString() {
         return "Flight{" +
                 "mFlightHistory=" + mFlightHistory +
-                ", mAircraftName='" + mAircraftName + '\'' +
                 ", mCallSign='" + mCallSign + '\'' +
                 ", mDisplayName='" + mDisplayName + '\'' +
                 ", mFlightID=" + mFlightID +
                 ", mUserID=" + mUserID +
+                ", mLiveryID=" + mLivery.getName() +
                 ", mLastReportUTC=" + mLastReportUTC +
                 '}';
     }
