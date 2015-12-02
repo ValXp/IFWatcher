@@ -41,6 +41,7 @@ public class ServerChooserActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Utils.initContext(this);
+        APIConstants.init(this);
         setContentView(R.layout.activity_server_chooser);
         mServerListView = (RecyclerView) findViewById(R.id.server_list);
         mTitleText = (TextView) findViewById(R.id.server_chooser_title);
