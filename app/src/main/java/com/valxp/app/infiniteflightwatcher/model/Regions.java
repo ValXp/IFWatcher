@@ -45,6 +45,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Created by ValXp on 6/26/14.
@@ -52,8 +53,19 @@ import java.util.Map;
 public class Regions extends ArrayList<Regions.Region> {
     public static long METAR_UPDATE_TRESHOLD_MS = 1000 * 60 * 15; // Refresh every 15 minutes
     private Long mLastMETARUpdate = null;
+    private static Regions mInstance;
+    private static Object mMutex = new Object();
 
-    public Regions(Context ctx) {
+    public static Regions getInstance(Context mCtx) {
+        synchronized (mMutex) {
+            if (mInstance == null) {
+                mInstance = new Regions(mCtx);
+            }
+            return mInstance;
+        }
+    }
+
+    private Regions(Context ctx) {
         try {
             Utils.Benchmark.start("regions.json parsing");
             InputStream file = ctx.getAssets().open("regions.json");
@@ -435,7 +447,7 @@ public class Regions extends ArrayList<Regions.Region> {
                             mainLayout.addView(ATCTitle);
                             LinearLayout ATCLayout = Utils.createLinearLayout(ctx);
                             LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) ATCLayout.getLayoutParams();
-                            lp.setMargins((int) Utils.dpToPx(10), 0, 0, 0);
+                            lp.setMargins(Utils.dpToPx(10), 0, 0, 0);
                             ATCLayout.setLayoutParams(lp);
                             for (ATC atc : myAtcs) {
                                 TextView text = Utils.createTextView(ctx, atc.type.name() + ": " + atc.user.getName());
@@ -447,7 +459,7 @@ public class Regions extends ArrayList<Regions.Region> {
                             mainLayout.addView(Utils.createTextView(ctx, ap.runways.size() + " Runways:"));
                             LinearLayout runwayLayout = Utils.createLinearLayout(ctx);
                             LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) runwayLayout.getLayoutParams();
-                            lp.setMargins((int) Utils.dpToPx(10), 0, 0, 0);
+                            lp.setMargins(Utils.dpToPx(10), 0, 0, 0);
                             runwayLayout.setLayoutParams(lp);
                             for (Airport.Runway runway : ap.runways) {
                                 TextView text = Utils.createTextView(ctx, runway.nameBegin + "/" + runway.nameEnd + ": Length: " + runway.length + "ft");
@@ -458,7 +470,7 @@ public class Regions extends ArrayList<Regions.Region> {
                         Metar metar = mMetar.get(ap.ICAO);
                         if (metar != null) {
                             TextView text = Utils.createTextView(ctx, "METAR: " + metar.getRaw());
-                            text.setMaxWidth((int) Utils.dpToPx(300));
+                            text.setMaxWidth(Utils.dpToPx(300));
                             mainLayout.addView(text);
                         }
                     }

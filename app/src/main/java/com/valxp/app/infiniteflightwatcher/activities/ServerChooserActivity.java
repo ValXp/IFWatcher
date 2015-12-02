@@ -22,6 +22,7 @@ import com.valxp.app.infiniteflightwatcher.TimeProvider;
 import com.valxp.app.infiniteflightwatcher.Utils;
 import com.valxp.app.infiniteflightwatcher.caching.FileDiskCache;
 import com.valxp.app.infiniteflightwatcher.model.Liveries;
+import com.valxp.app.infiniteflightwatcher.model.Regions;
 import com.valxp.app.infiniteflightwatcher.model.Server;
 
 import java.util.HashMap;
@@ -55,6 +56,13 @@ public class ServerChooserActivity extends Activity {
 
         mServerListView.setVisibility(View.GONE);
 
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                // Pre-load regions because it can take a while
+                Regions.getInstance(ServerChooserActivity.this);
+            }
+        }).start();
         mThread = new Thread(new Runnable() {
             @Override
             public void run() {
