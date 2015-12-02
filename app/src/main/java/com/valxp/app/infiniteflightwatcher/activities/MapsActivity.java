@@ -498,6 +498,8 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             flight.selectMarker(mMap, mBitmapProvider, true);
             setPathVisible(flight);
             mSelectedFlight = flight;
+            mSelectedFlight.setNeedsUpdate(true);
+            mSelectedFlight.getUser().markForUpdate();
         }
         showInfoPane(flight);
     }

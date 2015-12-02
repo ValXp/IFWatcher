@@ -122,7 +122,6 @@ public class Fleet {
         if (found == null) {
             tempFlight.getUser().setCurrentFlight(tempFlight);
             mFleet.put(tempFlight.getUser(), tempFlight);
-            tempFlight.getUser().markForUpdate();
         } else if (tempFlight.getFlightID().equals(found.getFlightID())) {
             found.addFlightData(tempFlight.getFlightHistory());
         } else {
