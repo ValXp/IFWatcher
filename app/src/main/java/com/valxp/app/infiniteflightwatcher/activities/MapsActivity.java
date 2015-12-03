@@ -24,6 +24,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.SupportMapFragment;
@@ -151,7 +152,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             }
         });
 
-        mListAdapter = new MainListAdapter(this, mFleet, mRegions, mServers);
+        mListAdapter = new MainListAdapter(this, mFleet, mRegions, mAtcs, mServers);
         mExpandableList.setOnChildClickListener(this);
         mExpandableList.setAdapter(mListAdapter);
         mDrawer.setDrawerListener(new DrawerLayout.DrawerListener() {
@@ -649,7 +650,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             expandedGroups.add(mExpandableList.isGroupExpanded(i));
         }
         int pos = mExpandableList.getFirstVisiblePosition();
-        mListAdapter = new MainListAdapter(this, mFleet, mRegions, mServers);
+        mListAdapter = new MainListAdapter(this, mFleet, mRegions, mAtcs, mServers);
         mExpandableList.setAdapter(mListAdapter);
         for (int i = 0; i < groupCount; ++i) {
             if (expandedGroups.get(i))
@@ -676,6 +677,12 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 final Flight flight = (Flight) tag;
                 mDrawer.closeDrawers();
                 showFlight(flight);
+                break;
+            case MainListAdapter.ATC_INDEX:
+                mDrawer.closeDrawers();
+                unselectFlight();
+                CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(((ATC) tag).position, 12);
+                mMap.animateCamera(cameraUpdate);
                 break;
             case MainListAdapter.SERVERS_INDEX:
                 mDrawer.closeDrawers();

@@ -13,6 +13,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.valxp.app.infiniteflightwatcher.R;
+import com.valxp.app.infiniteflightwatcher.model.ATC;
 import com.valxp.app.infiniteflightwatcher.model.Fleet;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
 import com.valxp.app.infiniteflightwatcher.model.Metar;
@@ -35,73 +36,90 @@ import java.util.Map;
 public class MainListAdapter implements ExpandableListAdapter {
     public static final int REGIONS_INDEX = 0;
     public static final int USERS_INDEX = 1;
-    public static final int SERVERS_INDEX = 2;
+    public static final int ATC_INDEX = 2;
+    public static final int SERVERS_INDEX = 3;
     private Context mContext;
     private Regions mRegions;
     private List<Regions.Region> mRegionList;
     private List<Users.User> mUserList;
+    private List<ATC> mAtcs;
     private List<Server> mServerList;
     private Fleet mFleet;
 
 
-    public MainListAdapter(Context context, Fleet fleet, Regions regions, HashMap<String, Server> servers) {
+    public MainListAdapter(Context context, Fleet fleet, Regions regions, Map<String, List<ATC>> atcs, HashMap<String, Server> servers) {
         mContext = context;
         mRegions = regions;
         mFleet = fleet;
 
+        mAtcs = new ArrayList<>();
+        if (atcs != null) {
+            synchronized (atcs) {
+                for (List<ATC> list: atcs.values()) {
+                    mAtcs.addAll(list);
+                }
+                Collections.sort(mAtcs, new Comparator<ATC>() {
+                    @Override
+                    public int compare(ATC lhs, ATC rhs) {
+                        return lhs.name.compareTo(rhs.name);
+                    }
+                });
+            }
+        }
+
         synchronized (regions) {
-            mRegionList = new ArrayList<Regions.Region>(regions);
-        }
-        Collections.sort(mRegionList, new Comparator<Regions.Region>() {
-            @Override
-            public int compare(Regions.Region region, Regions.Region region2) {
-                return region2.getPlayerCount() - region.getPlayerCount();
-            }
-        });
-
-        synchronized (fleet) {
-            mUserList = new ArrayList<Users.User>(fleet.getUsers().getUsers().values());
-        }
-        for (Iterator<Users.User> it = mUserList.iterator(); it.hasNext();) {
-            if (it.next().getCurrentFlight() == null)
-                it.remove();
-        }
-        Collections.sort(mUserList, new Comparator<Users.User>() {
-            @Override
-            public int compare(Users.User user, Users.User user2) {
-                Flight flight = user.getCurrentFlight();
-                Flight flight2 = user2.getCurrentFlight();
-
-                Regions.Region region = flight == null ? null : mRegions.regionContainingPoint(flight.getAproxLocation());
-                Regions.Region region2 = flight2 == null ? null : mRegions.regionContainingPoint(flight2.getAproxLocation());
-                if (region == null)
-                    return region2 == null ? 0 : -1;
-                if (region2 == null)
-                    return 1;
-                return region2.getName().compareTo(region.getName());
-            }
-        });
-
-        if (servers != null) {
-            synchronized (servers) {
-                mServerList = new ArrayList<Server>(servers.values());
-            }
-            Collections.sort(mServerList, new Comparator<Server>() {
+            mRegionList = new ArrayList<>(regions);
+            Collections.sort(mRegionList, new Comparator<Regions.Region>() {
                 @Override
-                public int compare(Server server, Server server2) {
-                    String name;
-                    String name2;
-                    synchronized (server) {
-                        name = server.getName();
-                    }
-                    synchronized (server2) {
-                        name2 = server2.getName();
-                    }
-                    return name.compareTo(name2);
+                public int compare(Regions.Region region, Regions.Region region2) {
+                    return region2.getPlayerCount() - region.getPlayerCount();
                 }
             });
+        }
+
+        synchronized (fleet) {
+            mUserList = new ArrayList<>(fleet.getUsers().getUsers().values());
+            for (Iterator<Users.User> it = mUserList.iterator(); it.hasNext();) {
+                if (it.next().getCurrentFlight() == null)
+                    it.remove();
+            }
+            Collections.sort(mUserList, new Comparator<Users.User>() {
+                @Override
+                public int compare(Users.User user, Users.User user2) {
+                    Flight flight = user.getCurrentFlight();
+                    Flight flight2 = user2.getCurrentFlight();
+
+                    Regions.Region region = flight == null ? null : mRegions.regionContainingPoint(flight.getAproxLocation());
+                    Regions.Region region2 = flight2 == null ? null : mRegions.regionContainingPoint(flight2.getAproxLocation());
+                    if (region == null)
+                        return region2 == null ? 0 : -1;
+                    if (region2 == null)
+                        return 1;
+                    return region2.getName().compareTo(region.getName());
+                }
+            });
+        }
+
+        mServerList = new ArrayList<>();
+        if (servers != null) {
+            synchronized (servers) {
+                mServerList.addAll(servers.values());
+                Collections.sort(mServerList, new Comparator<Server>() {
+                    @Override
+                    public int compare(Server server, Server server2) {
+                        String name;
+                        String name2;
+                        synchronized (server) {
+                            name = server.getName();
+                        }
+                        synchronized (server2) {
+                            name2 = server2.getName();
+                        }
+                        return name.compareTo(name2);
+                    }
+                });
+            }
         } else {
-            mServerList = new ArrayList<Server>();
         }
     }
 
@@ -117,7 +135,7 @@ public class MainListAdapter implements ExpandableListAdapter {
 
     @Override
     public int getGroupCount() {
-        return (mRegionList == null ? 0 : 1) + (mUserList == null ? 0 : 1) + (mServerList == null ? 0 : 1);
+        return (mRegionList == null ? 0 : 1) + (mAtcs == null ? 0 : 1) + (mUserList == null ? 0 : 1) + (mServerList == null ? 0 : 1);
     }
 
     @Override
@@ -133,6 +151,8 @@ public class MainListAdapter implements ExpandableListAdapter {
                 return mRegionList;
             case USERS_INDEX:
                 return mUserList;
+            case ATC_INDEX:
+                return mAtcs;
             case SERVERS_INDEX:
                 return mServerList;
             default:
@@ -170,6 +190,7 @@ public class MainListAdapter implements ExpandableListAdapter {
         TextView name = (TextView) view.findViewById(R.id.group_name);
         TextView count = (TextView) view.findViewById(R.id.group_count);
 
+        count.setText("(" + getChildrenCount(i) + ")");
         switch (i) {
             case REGIONS_INDEX:
                 name.setText("Regions");
@@ -177,11 +198,12 @@ public class MainListAdapter implements ExpandableListAdapter {
             break;
             case USERS_INDEX:
                 name.setText("Users");
-                count.setText("(" + getChildrenCount(i) + ")");
+            break;
+            case ATC_INDEX:
+                name.setText("ATC");
             break;
             case SERVERS_INDEX:
                 name.setText("Servers");
-                count.setText("(" + getChildrenCount(i) + ")");
             break;
         }
 
@@ -253,6 +275,16 @@ public class MainListAdapter implements ExpandableListAdapter {
                     }
                 }
                 count.setText(text);
+                break;
+            case ATC_INDEX:
+                ATC atc = (ATC) item;
+                view.setTag(atc);
+                name.setText(atc.user.getName());
+                count.setText(atc.name);
+                subname.setText(atc.type.name());
+                name.setVisibility(View.VISIBLE);
+                count.setVisibility(View.VISIBLE);
+                subname.setVisibility(View.VISIBLE);
                 break;
             case SERVERS_INDEX:
                 Server server = (Server) item;
