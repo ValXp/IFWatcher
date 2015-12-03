@@ -21,4 +21,10 @@
     <color name="orange_selected_color">
         #FFdb7a00
     </color>
+    <color name="active_atc_color">
+        #FF33cc33
+    </color>
+    <color name="inactive_atc_color">
+        #FFFFFFFF
+    </color>
 </resources>
