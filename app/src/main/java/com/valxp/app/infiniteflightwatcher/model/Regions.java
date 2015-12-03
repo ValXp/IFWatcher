@@ -94,9 +94,9 @@ public class Regions extends ArrayList<Regions.Region> {
         }
     }
 
-    public void draw(Context ctx, GoogleMap map, boolean cluster, Bounds camBounds) {
+    public void draw(Context ctx, GoogleMap map, Map<String, List<ATC>> atcs, boolean cluster, Bounds camBounds) {
         for (Region region : this) {
-            region.draw(ctx, map, cluster, camBounds);
+            region.draw(ctx, map, atcs, cluster, camBounds);
         }
     }
 
@@ -241,7 +241,7 @@ public class Regions extends ArrayList<Regions.Region> {
 
         }
 
-        private void drawAirports(Context ctx, GoogleMap map, Boolean cluster) {
+        private void drawAirports(Context ctx, GoogleMap map, Map<String, List<ATC>> atcs, Boolean cluster) {
             Utils.Benchmark.start("DrawAirports");
             if (cluster) {
                 Iterator<Map.Entry<Airport, Marker>> it = mAirportMarkers.entrySet().iterator();
@@ -254,12 +254,16 @@ public class Regions extends ArrayList<Regions.Region> {
             LatLngBounds bounds = map.getProjection().getVisibleRegion().latLngBounds;
             for (Airport ap : mAirports.values()) {
                 Marker old = mAirportMarkers.get(ap);
-                boolean shouldDraw = (ap.isMajor || map.getCameraPosition().zoom > 9) && bounds.contains(ap.position);
+                List<ATC> atcList = atcs.get(ap.ICAO);
+                boolean hasAtc = atcList != null && !atcList.isEmpty();
+                boolean shouldDraw = (hasAtc || ap.isMajor || map.getCameraPosition().zoom > 9) && bounds.contains(ap.position);
                 if (old == null && shouldDraw) {
-                    mAirportMarkers.put(ap, map.addMarker(new MarkerOptions().position(ap.position).title(ap.name).icon(AirportBitmapProvider.getAsset(ctx, ap))));
+                    mAirportMarkers.put(ap, map.addMarker(new MarkerOptions().position(ap.position).title(ap.name).icon(AirportBitmapProvider.getAsset(ctx, ap, hasAtc))));
                 } else if (old != null && !shouldDraw) {
                     mAirportMarkers.remove(ap);
                     old.remove();
+                } else if (old != null && shouldDraw) {
+                    old.setIcon(AirportBitmapProvider.getAsset(ctx, ap, hasAtc));
                 }
             }
             Utils.Benchmark.stopAndLog("DrawAirports");
@@ -279,13 +283,13 @@ public class Regions extends ArrayList<Regions.Region> {
             mMetarDrawn = true;
         }
 
-        public void draw(Context ctx, GoogleMap map, boolean cluster, Bounds camBounds) {
+        public void draw(Context ctx, GoogleMap map, Map<String, List<ATC>> atcs, boolean cluster, Bounds camBounds) {
             if (!mMetarDrawn && mMetar != null) {
                 drawMetar(ctx, map);
             }
 
             if (isContainedIn(camBounds))
-                drawAirports(ctx, map, cluster);
+                drawAirports(ctx, map, atcs, cluster);
 
             if (mLine == null) {
                 mLine = map.addPolygon(new PolygonOptions()

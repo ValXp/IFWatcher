@@ -16,11 +16,12 @@ import com.valxp.app.infiniteflightwatcher.model.Airport;
  */
 public class AirportBitmapProvider {
 
-    public static BitmapDescriptor getAsset(Context ctx, Airport airport) {
+    public static BitmapDescriptor getAsset(Context ctx, Airport airport, boolean hasAtc) {
 
         TextView t = (TextView) LayoutInflater.from(ctx).inflate(R.layout.region_counter, null);
         t.setText(airport.ICAO);
-        t.setTextSize(11);
+        t.setTextSize(airport.isMajor ? 12 : 10);
+        t.setBackgroundResource(hasAtc ? R.color.active_atc_color : R.color.inactive_atc_color);
         t.measure(View.MeasureSpec.getSize(t.getMeasuredWidth()), View.MeasureSpec.getSize(t.getMeasuredHeight()));
         Bitmap bmp = Bitmap.createBitmap(t.getMeasuredWidth(), t.getMeasuredHeight(), Bitmap.Config.ARGB_4444);
         t.layout(0, 0, bmp.getWidth(), bmp.getHeight());

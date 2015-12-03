@@ -601,7 +601,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                     mTileOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mHeatMapTileProvider));
             }
             // Do the regions drawing.
-            mRegions.draw(MapsActivity.this, mMap, mClusterMode, camBounds);
+            mRegions.draw(MapsActivity.this, mMap, mAtcs, mClusterMode, camBounds);
 
             // Update the plane markers
             drawPlanes(vg.latLngBounds);
