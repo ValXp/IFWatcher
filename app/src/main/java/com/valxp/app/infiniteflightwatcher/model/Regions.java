@@ -263,7 +263,10 @@ public class Regions extends ArrayList<Regions.Region> {
                     mAirportMarkers.remove(ap);
                     old.remove();
                 } else if (old != null && shouldDraw) {
+                    boolean isInfoWindowShown = old.isInfoWindowShown();
                     old.setIcon(AirportBitmapProvider.getAsset(ctx, ap, hasAtc));
+                    if (isInfoWindowShown)
+                        old.showInfoWindow();
                 }
             }
             Utils.Benchmark.stopAndLog("DrawAirports");
