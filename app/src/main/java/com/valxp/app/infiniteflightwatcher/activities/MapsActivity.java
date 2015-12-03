@@ -319,6 +319,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         if (mMap == null) {
             mMap = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
                     .getMap();
+            mMap.animateCamera(CameraUpdateFactory.newLatLng(new LatLng(41.0354252,-99.8141516)));
         }
         if (mHeatMapTileProvider == null) {
             mHeatMapTileProvider = new HeatMapTileProvider();
