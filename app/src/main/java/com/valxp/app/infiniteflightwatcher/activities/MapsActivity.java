@@ -769,8 +769,9 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                     flightData.put("FlightID", "ForeFlight");
                     flightData.put("VerticalSpeed", "0");
                     flightData.put("AircraftName", "Unknown");
-                    flightData.put("CallSign", "Unknown");
+                    flightData.put("CallSign", "ForeFlight");
                     flightData.put("DisplayName", "You");
+                    flightData.put("LiveryID", "0");
                     mFleet.parseFlight(flightData);
                 } catch (JSONException e) {
                     e.printStackTrace();
