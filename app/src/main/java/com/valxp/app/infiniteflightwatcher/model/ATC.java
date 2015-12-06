@@ -27,6 +27,8 @@ public class ATC {
 
     // ICAO name indexed map of list of ATCs because there can be multiple ATCs per location
     public static Map<String, List<ATC>> getATC(Server server) {
+        if (server == null)
+            return null;
         synchronized (mAtcs) {
             if (TimeProvider.getTime() - mLastUpdated < REFRESH_RATE_MS && mAtcs != null && mAtcs.get(server) != null)
                 return mAtcs.get(server);
