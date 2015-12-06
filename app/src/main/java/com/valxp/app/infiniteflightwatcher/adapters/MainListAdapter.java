@@ -278,12 +278,19 @@ public class MainListAdapter implements ExpandableListAdapter {
                 break;
             case ATC_INDEX:
                 ATC atc = (ATC) item;
+                color =  android.R.color.black;
                 view.setTag(atc);
+
                 name.setText(atc.user.getName());
-                count.setText(atc.name);
-                subname.setText(atc.type.name());
+                name.setTextColor(mContext.getResources().getColor(color));
                 name.setVisibility(View.VISIBLE);
+
+                count.setText(atc.name);
+                count.setTextColor(mContext.getResources().getColor(color));
                 count.setVisibility(View.VISIBLE);
+
+                subname.setText(atc.type.name());
+                subname.setTextColor(mContext.getResources().getColor(color));
                 subname.setVisibility(View.VISIBLE);
                 break;
             case SERVERS_INDEX:
