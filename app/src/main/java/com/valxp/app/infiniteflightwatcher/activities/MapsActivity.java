@@ -65,7 +65,7 @@ import java.util.List;
 import java.util.Map;
 
 
-public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, GoogleMap.OnCameraChangeListener, ExpandableListView.OnChildClickListener, TouchableMapFragment.TouchableWrapper.UpdateMapAfterUserInteraction, GoogleMap.InfoWindowAdapter, CompoundButton.OnCheckedChangeListener, ForeFlightClient.GPSListener {
+public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarkerClickListener, GoogleMap.OnMapClickListener, GoogleMap.OnCameraChangeListener, ExpandableListView.OnChildClickListener, TouchableMapFragment.TouchableWrapper.UpdateMapAfterUserInteraction, CompoundButton.OnCheckedChangeListener, ForeFlightClient.GPSListener {
 
     public static final long FLIGHT_MAX_LIFETIME_SECONDS = 60 * 3;
     public static final long MINIMUM_INTERPOLATION_SPEED_KTS = 40;
@@ -178,7 +178,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mMap.setOnMarkerClickListener(this);
         mMap.setOnMapClickListener(this);
         mMap.setOnCameraChangeListener(this);
-        mMap.setInfoWindowAdapter(this);
     }
 
     @Override
@@ -725,16 +724,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     @Override
     public void onUpdateMapAfterUserInteraction() {
         mInfoPane.setFollow(false);
-    }
-
-    @Override
-    public View getInfoWindow(Marker marker) {
-        return getLayoutInflater().inflate(R.layout.empty, null);
-    }
-
-    @Override
-    public View getInfoContents(Marker marker) {
-        return null;
     }
 
     @Override
