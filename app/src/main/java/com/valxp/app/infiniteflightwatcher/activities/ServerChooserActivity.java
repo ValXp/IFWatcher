@@ -87,7 +87,7 @@ public class ServerChooserActivity extends Activity {
             }
         });
         mThread.start();
-        AppUpdater.checkUpdate(this);
+        //AppUpdater.checkUpdate(this);
         TimeProvider.synchronizeWithInternet();
     }
 
