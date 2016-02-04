@@ -88,6 +88,12 @@ public class Regions extends ArrayList<Regions.Region> {
         }
     }
 
+    public void clearMap() {
+        for (Region region : this) {
+            region.clearMap();
+        }
+    }
+
     public void updateCount(Fleet fleet) {
         for (Region region : this) {
             region.updateCount(fleet);
@@ -201,6 +207,12 @@ public class Regions extends ArrayList<Regions.Region> {
                 e.printStackTrace();
             }
             Log.d("Region", mAirports.size() + " airports found in " + mName);
+        }
+
+        private void clearMap() {
+            mLine = null;
+            mMarker = null;
+            mAirportMarkers = new HashMap<>();
         }
 
         private void updateMetar() {

@@ -77,6 +77,14 @@ public class Fleet {
         };
     }
 
+    public synchronized void clearMap() {
+        synchronized (mFleet) {
+            for (Flight flight : mFleet.values()) {
+                flight.clearMap();
+            }
+        }
+    }
+
     public Map<Users.User, Flight> getFleet() {
         return mFleet;
     }

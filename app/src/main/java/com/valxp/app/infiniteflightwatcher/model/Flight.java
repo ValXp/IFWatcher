@@ -25,6 +25,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -129,6 +130,20 @@ public class Flight {
         _addFlightData(data);
         // Update marker for latest position
         updateAnim();
+    }
+
+    public void clearMap() {
+        if (mMarkerAnimator != null) {
+            mMarkerAnimator.cancel();
+            mMarkerAnimator = null;
+        }
+        mMarker = null;
+        if (mLineAnimator != null) {
+            mLineAnimator.cancel();
+            mLineAnimator = null;
+        }
+        mAproxTrail = null;
+        mHistoryTrail = new ArrayList<>();
     }
 
     private void updateAnim() {
@@ -285,7 +300,8 @@ public class Flight {
                 e.printStackTrace();
                 mMarker = null;
             }
-        } else if (mMarker == null) {
+        }
+        if (mMarker == null) {
             Marker marker = map.addMarker(new MarkerOptions()
                     .position(pos)
                     .rotation(data.bearing.floatValue())

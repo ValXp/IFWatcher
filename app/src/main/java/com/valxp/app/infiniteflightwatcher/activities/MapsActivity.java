@@ -262,7 +262,12 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         Utils.Benchmark.start("onResume");
         super.onResume();
         TimeProvider.synchronizeWithInternet();
+        unselectFlight();
         setUpMapIfNeeded();
+        if (mRegions != null)
+            mRegions.clearMap();
+        if (mFleet != null)
+            mFleet.clearMap();
 
         // Update thread is a thread that will refresh the API data every 8 seconds
         if (mUpdateThread != null && mUpdateThread.isAlive())
@@ -320,6 +325,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                     .getMap();
             mMap.animateCamera(CameraUpdateFactory.newLatLng(new LatLng(41.0354252,-99.8141516)));
         }
+        mMap.clear();
         if (mHeatMapTileProvider == null) {
             mHeatMapTileProvider = new HeatMapTileProvider();
         }
