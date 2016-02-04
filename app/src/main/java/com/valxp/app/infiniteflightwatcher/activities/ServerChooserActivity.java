@@ -16,7 +16,6 @@ import android.widget.TextView;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.valxp.app.infiniteflightwatcher.APIConstants;
-import com.valxp.app.infiniteflightwatcher.AppUpdater;
 import com.valxp.app.infiniteflightwatcher.R;
 import com.valxp.app.infiniteflightwatcher.TimeProvider;
 import com.valxp.app.infiniteflightwatcher.Utils;
@@ -87,7 +86,6 @@ public class ServerChooserActivity extends Activity {
             }
         });
         mThread.start();
-        //AppUpdater.checkUpdate(this);
         TimeProvider.synchronizeWithInternet();
     }
 
