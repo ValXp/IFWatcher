@@ -1,20 +1,29 @@
 package com.valxp.app.infiniteflightwatcher;
 
 import android.content.Context;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Created by ValXp on 5/19/15.
  */
 public class Utils {
+    public static final long A_GRAIN_OF_ = 0x5417;
     private static Context mContext;
+    private static Boolean mIsMyDevice;
+    private static final List<String> myDevices = Arrays.asList(
+            "44c651a066e88cb72419bca4154dd79ae4037bc36314e7b72c857437161aaf72");
 
     public static void initContext(Context ctx) {
         mContext = ctx;
@@ -72,4 +81,32 @@ public class Utils {
         return view;
     }
 
+    public static boolean isMyDevice(Context ctx) {
+        if (mIsMyDevice == null) {
+            String sha256 = "";
+            try {
+                String android_id = Settings.Secure.getString(ctx.getContentResolver(),
+                        Settings.Secure.ANDROID_ID);
+                BigInteger value = new BigInteger(android_id, 16);
+                value = value.add(BigInteger.valueOf(A_GRAIN_OF_));
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                digest.reset();
+                byte[] sha = digest.digest(value.toString(16).getBytes("UTF-8"));
+                digest.reset();
+                sha256 = String.format("%0" + (sha.length * 2) + 'x', new BigInteger(1, sha));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            mIsMyDevice = false;
+            for (String deviceSHA : myDevices) {
+                if (sha256.equals(deviceSHA)) {
+                    mIsMyDevice = true;
+                    break;
+                }
+            }
+            Log.d("MapsActivity", "android_id: " + sha256);
+        }
+        return mIsMyDevice;
+    }
 }
