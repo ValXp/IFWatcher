@@ -792,7 +792,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                         mProgress.setVisibility(View.VISIBLE);
                     }
                 });
-                if (TimeProvider.getTime() -  mLastInteractionTime > UI_TIMEOUT_MS) {
+                if (TimeProvider.getTime() -  mLastInteractionTime > UI_TIMEOUT_MS && !Utils.isMyDevice(MapsActivity.this)) {
                     Log.d("UITimeout", "Interaction timeout: " +  (TimeProvider.getTime() -  mLastInteractionTime) + " > " + UI_TIMEOUT_MS);
                     runOnUiThread(new Runnable() {
                         @Override
