@@ -28,8 +28,8 @@ public class APIConstants {
         METAR("http://www.aviationweather.gov/adds/dataserver_current/httpparam?dataSource=metars&requestType=retrieve&format=xml&hoursBeforeNow=1"),
 
         // Misc Data
-        LIVERIES("http://valxp.net/IFWatcher/resources/"),
-        LIVERY_PREVIEWS("http://valxp.net/IFWatcher/resources/livery_previews/");
+        LIVERIES("https://valxp.net/IFWatcher/resources/"),
+        LIVERY_PREVIEWS("https://valxp.net/IFWatcher/resources/livery_previews/");
 
         APICalls(String call, boolean needsKey) {
             this.value = call;
