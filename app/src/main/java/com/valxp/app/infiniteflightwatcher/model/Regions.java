@@ -252,21 +252,23 @@ public class Regions extends ArrayList<Regions.Region> {
                 return;
             }
             LatLngBounds bounds = map.getProjection().getVisibleRegion().latLngBounds;
-            for (Airport ap : mAirports.values()) {
-                Marker old = mAirportMarkers.get(ap);
-                List<ATC> atcList = atcs.get(ap.ICAO);
-                boolean hasAtc = atcList != null && !atcList.isEmpty();
-                boolean shouldDraw = (hasAtc || ap.isMajor || map.getCameraPosition().zoom > 9) && bounds.contains(ap.position);
-                if (old == null && shouldDraw) {
-                    mAirportMarkers.put(ap, map.addMarker(new MarkerOptions().position(ap.position).title(ap.name).icon(AirportBitmapProvider.getAsset(ctx, ap, hasAtc))));
-                } else if (old != null && !shouldDraw) {
-                    mAirportMarkers.remove(ap);
-                    old.remove();
-                } else if (old != null && shouldDraw) {
-                    boolean isInfoWindowShown = old.isInfoWindowShown();
-                    old.setIcon(AirportBitmapProvider.getAsset(ctx, ap, hasAtc));
-                    if (isInfoWindowShown)
-                        old.showInfoWindow();
+            if (atcs != null) {
+                for (Airport ap : mAirports.values()) {
+                    Marker old = mAirportMarkers.get(ap);
+                    List<ATC> atcList = atcs.get(ap.ICAO);
+                    boolean hasAtc = atcList != null && !atcList.isEmpty();
+                    boolean shouldDraw = (hasAtc || ap.isMajor || map.getCameraPosition().zoom > 9) && bounds.contains(ap.position);
+                    if (old == null && shouldDraw) {
+                        mAirportMarkers.put(ap, map.addMarker(new MarkerOptions().position(ap.position).title(ap.name).icon(AirportBitmapProvider.getAsset(ctx, ap, hasAtc))));
+                    } else if (old != null && !shouldDraw) {
+                        mAirportMarkers.remove(ap);
+                        old.remove();
+                    } else if (old != null && shouldDraw) {
+                        boolean isInfoWindowShown = old.isInfoWindowShown();
+                        old.setIcon(AirportBitmapProvider.getAsset(ctx, ap, hasAtc));
+                        if (isInfoWindowShown)
+                            old.showInfoWindow();
+                    }
                 }
             }
             Utils.Benchmark.stopAndLog("DrawAirports");
