@@ -9,6 +9,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Locale;
 import java.util.TimeZone;
 
 /**
@@ -22,9 +23,9 @@ public class TimeProvider {
             @Override
             public void run() {
                 try {
-                    URL url = new URL("http://www.timeapi.org/utc/now");
+                    URL url = new URL(APIConstants.APICalls.TIME.toString());
                     BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
-                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ");
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ", Locale.US);
                     sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
                     mTimeOffset = sdf.parse(reader.readLine()).getTime() - System.currentTimeMillis();
                     Log.d("TimeProvider", "Time updated from server. Offset : " + mTimeOffset + "ms");
