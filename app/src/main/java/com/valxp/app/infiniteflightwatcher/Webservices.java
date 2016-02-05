@@ -89,8 +89,13 @@ public class Webservices {
                 headers.put("If-None-Match", etag);
             }
             HttpURLConnection connection = connect(call, remoteFile, null, headers);
-            if (connection == null || connection.getResponseCode() != 200) {
-                Log.d("Webservice", "Failed to get: " + remoteFile);
+            int code = connection == null ? -1 : connection.getResponseCode();
+            if (connection == null || code != 200) {
+                if (code == 304) {
+                    Log.d("Webservice", remoteFile + " is up-to-date");
+                } else {
+                    Log.d("Webservice", "Failed to get: " + remoteFile + " (HTTP " + code + ")");
+                }
                 return null;
             }
             InputStream is = connection.getInputStream();
