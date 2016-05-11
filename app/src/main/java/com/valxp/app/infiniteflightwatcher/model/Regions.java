@@ -488,11 +488,13 @@ public class Regions extends ArrayList<Regions.Region> {
                             }
                             mainLayout.addView(runwayLayout);
                         }
-                        Metar metar = mMetar.get(ap.ICAO);
-                        if (metar != null) {
-                            TextView text = Utils.createTextView(ctx, "METAR: " + metar.getRaw());
-                            text.setMaxWidth(Utils.dpToPx(300));
-                            mainLayout.addView(text);
+                        if (mMetar != null) {
+                            Metar metar = mMetar.get(ap.ICAO);
+                            if (metar != null) {
+                                TextView text = Utils.createTextView(ctx, "METAR: " + metar.getRaw());
+                                text.setMaxWidth(Utils.dpToPx(300));
+                                mainLayout.addView(text);
+                            }
                         }
                     }
 
