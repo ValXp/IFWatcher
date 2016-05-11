@@ -23,8 +23,8 @@ if (propsFile.exists()) {
         defaultConfig {
             minSdkVersion 14
             targetSdkVersion 22
-            versionCode 31
-            versionName "7.10GP"
+            versionCode 32
+            versionName "7.11GP"
             applicationId "com.valxp.app.infiniteflightwatcher"
         }
         buildTypes {
