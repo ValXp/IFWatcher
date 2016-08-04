@@ -30,6 +30,7 @@ public class APIConstants {
         // Liveries + IDs
         LIVERIES("https://valxp.net/IFWatcher/resources/"),
         LIVERY_PREVIEWS("https://valxp.net/IFWatcher/resources/livery_previews/"),
+        MARKERS("https://valxp.net/IFWatcher/resources/markers/"),
 
         // Time
         TIME("https://valxp.net/IFWatcher/api/utc.php");
