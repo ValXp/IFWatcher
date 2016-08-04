@@ -34,19 +34,23 @@ public class FileDiskCache {
         }
     }
 
-    public String getFilePath(String fileName) {
+    public String getFilePath(String fileName, boolean blockIfNotPresent) {
         String fullFileName = mCacheLocation + fileName;
         String metaName = fullFileName + ".meta";
         String etag = getEtag(metaName);
-
-        String benchName = "Downloading " + fileName;
-        Utils.Benchmark.start(benchName);
-        String newEtag = Webservices.getFile(mRemotePath, fileName, etag, fullFileName);
-        Utils.Benchmark.stopAndLog(benchName);
-
         File file = new File(fullFileName);
-        if (file.exists() && newEtag != null) {
-            writeEtag(metaName, newEtag);
+        if (blockIfNotPresent && (!file.exists() || etag == null || System.currentTimeMillis() - file.lastModified() > 1000 * 3600 * 24 * 14)) // every 2 weeks
+        {
+            String benchName = "Downloading " + fileName;
+            Utils.Benchmark.start(benchName);
+            String newEtag = Webservices.getFile(mRemotePath, fileName, etag, fullFileName);
+            Utils.Benchmark.stopAndLog(benchName);
+
+            file = new File(fullFileName);
+            file.setLastModified(System.currentTimeMillis());
+            if (file.exists() && newEtag != null) {
+                writeEtag(metaName, newEtag);
+            }
         }
         return file.exists() ? fullFileName : null;
     }

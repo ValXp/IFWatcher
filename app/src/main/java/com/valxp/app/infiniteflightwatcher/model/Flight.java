@@ -7,6 +7,7 @@ import android.support.v4.util.LongSparseArray;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.Marker;
@@ -289,25 +290,37 @@ public class Flight {
         createMarker(map, provider, false);
     }
 
-    private void createMarker(GoogleMap map, AirplaneBitmapProvider provider, boolean selected) {
+    private void createMarker(final GoogleMap map, AirplaneBitmapProvider provider, boolean selected) {
         // Marker creation needs the user to be set
         FlightData data = getCurrentData();
         LatLng pos = getAproxLocation();
         if (mMarker != null && selected != mIsSelected) {
             try {
-                mMarker.setIcon(provider.getAsset(this, selected));
+                mMarker.setIcon(provider.getAsset(this, new AirplaneBitmapProvider.OnMarkerDownload() {
+                    @Override
+                    public void OnMarkerDownloaded(BitmapDescriptor descriptor) {
+                        if (descriptor != null)
+                            mMarker.setIcon(descriptor);
+                    }
+                }, selected));
             } catch (Exception e) {
                 e.printStackTrace();
                 mMarker = null;
             }
         }
         if (mMarker == null) {
-            Marker marker = map.addMarker(new MarkerOptions()
+            final Marker marker = map.addMarker(new MarkerOptions()
                     .position(pos)
                     .rotation(data.bearing.floatValue())
-                    .icon(provider.getAsset(this, selected))
                     .anchor(.5f, .5f)
                     .flat(true)); // Flat will keep the rotation based on north
+            marker.setIcon(provider.getAsset(this, new AirplaneBitmapProvider.OnMarkerDownload() {
+                @Override
+                public void OnMarkerDownloaded(BitmapDescriptor descriptor) {
+                    if (descriptor != null)
+                        marker.setIcon(descriptor);
+                }
+            }, selected));
             setMarker(marker);
             createMarkerAnimator();
         }

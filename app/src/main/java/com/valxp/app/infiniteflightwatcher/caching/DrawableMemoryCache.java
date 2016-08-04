@@ -5,6 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
+import android.util.Log;
+import android.util.LruCache;
 
 import com.valxp.app.infiniteflightwatcher.APIConstants;
 
@@ -16,14 +18,13 @@ import java.util.WeakHashMap;
 public class DrawableMemoryCache {
 
     private Context mContext;
-    // Weak hashmap to serve as a memory cache.
-    private WeakHashMap<String, Drawable> mDrawables;
+    LruCache<String, Drawable> mMemoryCache;
     private FileDiskCache mDiskCache;
 
     public DrawableMemoryCache(Context ctx, String cacheName, APIConstants.APICalls remotePath) {
         mContext = ctx;
-        mDrawables = new WeakHashMap<>();
         mDiskCache = new FileDiskCache(ctx, cacheName, remotePath);
+        mMemoryCache = new LruCache<>(2 * 1024 * 1024);
     }
 
     public Drawable getDrawable(String id) {
@@ -34,12 +35,12 @@ public class DrawableMemoryCache {
         // Don't bother if it's a dummy id.
         if (id.equals("0"))
             return null;
-        Drawable drawable = mDrawables.get(id);
-        if (drawable == null && blockIfNotPresent) {
-            String fileName = mDiskCache.getFilePath(id + ".png");
+        Drawable drawable = mMemoryCache.get(id);
+        if (drawable == null) {
+            String fileName = mDiskCache.getFilePath(id + ".png", blockIfNotPresent);
             if (fileName != null) {
                 drawable = loadDrawable(fileName);
-                mDrawables.put(id, drawable);
+                mMemoryCache.put(id, drawable);
             }
         }
         return drawable;

@@ -1,5 +1,6 @@
 package com.valxp.app.infiniteflightwatcher;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -7,14 +8,21 @@ import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.ScaleDrawable;
+import android.util.Log;
 import android.view.Gravity;
 
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.valxp.app.infiniteflightwatcher.caching.DrawableMemoryCache;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
 import com.valxp.app.infiniteflightwatcher.model.Users;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Created by ValXp on 5/25/14.
@@ -22,32 +30,20 @@ import java.io.IOException;
 public class AirplaneBitmapProvider {
 
     private Context mContext;
+    private DrawableMemoryCache mMemoryCache;
+    private ExecutorService mThreadPool;
+
+    public interface OnMarkerDownload {
+        void OnMarkerDownloaded(BitmapDescriptor descriptor);
+    }
 
     public AirplaneBitmapProvider(Context context) {
         mContext = context;
+        mMemoryCache = new DrawableMemoryCache(context, "markers", APIConstants.APICalls.MARKERS);
+        mThreadPool = Executors.newFixedThreadPool(Math.min(Runtime.getRuntime().availableProcessors(), 2));
     }
 
-    private Drawable drawableFromFlight(Flight flight) {
-        Drawable drawable = null;
-        try {
-            drawable = Drawable.createFromStream(mContext.getAssets().open("markers/" + flight.getLivery().getPlaneId() + ".png"), null);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        if (drawable == null) {
-            try {
-                drawable = Drawable.createFromStream(mContext.getAssets().open("markers/0.png"), null);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        return drawable;
-    }
-
-    public BitmapDescriptor getAsset(Flight flight, boolean selected) {
-
-        Drawable drawable = drawableFromFlight(flight);
-
+    private BitmapDescriptor drawableToDescriptor(Drawable drawable, Flight flight, boolean selected) {
         Users.User user = flight.getUser();
         int color = mContext.getResources().getColor(selected ? R.color.orange_selected_color : R.color.orange_color);
 //        if (user.getRole() == Users.User.Role.ADMIN)
@@ -79,6 +75,51 @@ public class AirplaneBitmapProvider {
         drawable.draw(canvas);
 
         BitmapDescriptor descriptor = BitmapDescriptorFactory.fromBitmap(bitmap);
+        return  descriptor;
+    }
+
+    public BitmapDescriptor getAsset(final Flight flight, final OnMarkerDownload callback, final boolean selected) {
+
+        Drawable drawable = null;
+        Runnable onFailureTask = null;
+        final String flightId = flight.getLivery().getPlaneId();
+        try {
+            drawable = mMemoryCache.getDrawable(flightId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if (drawable == null) {
+
+            try {
+                onFailureTask = new Runnable() {
+                    @Override
+                    public void run() {
+                        final Drawable drawable1 = mMemoryCache.getDrawable(flightId, true);
+                        BitmapDescriptor descriptor = null;
+                        if (drawable1 != null)
+                            descriptor = drawableToDescriptor(drawable1, flight, selected);
+                        final BitmapDescriptor descriptor1 = descriptor;
+                        ((Activity)mContext).runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    callback.OnMarkerDownloaded(descriptor1);
+                                } catch (Exception e)
+                                {
+                                    // Will happen when setting a marker that has already been released.
+                                }
+                            }
+                        });
+                    }
+                };
+                drawable = Drawable.createFromStream(mContext.getAssets().open("markers/0.png"), null);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        BitmapDescriptor descriptor = drawableToDescriptor(drawable, flight, selected);
+        if (onFailureTask != null)
+            mThreadPool.execute(onFailureTask);
         return descriptor;
     }
 }
