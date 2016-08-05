@@ -122,10 +122,11 @@ public class Users {
         private Long mLastFlight = 0l; // Time
         private String mName;
         private Long mOnlineFlights = 0l;
-        private Long mRank = 0l;
-        private Long mSkills = 0l;
         private Double mStanding = 0d; // 0 -> 0% 1 -> 100%
         private Long mViolations = 0l;
+        private PilotStats mPilotStats;
+        private boolean mIsAdmin;
+        private boolean mIsMod;
 
         private Flight mCurrentFlight = null;
 
@@ -135,50 +136,93 @@ public class Users {
 
         private boolean mDontUpdate = false;
 
-        public enum Role {
-            UNKNOWN(0, "Unknown"),
-            USER(1, "User"),
-            TESTER(4, "Tester"),
-            ADMIN(16, "Admin");
-
-            private final int mValue;
-            private final String mName;
-            Role(int value, String name) {
-                mValue = value;
-                mName = name;
-            }
-            public int getValue() {
-                return mValue;
-            }
-            public String toString() {
-                return mName;
-            }
-            public static Role fromValue(int value) {
-                Role[] roles = Role.class.getEnumConstants();
-                for (Role role : roles) {
-                    if (role.getValue() == value) {
-                        return role;
-                    }
-                }
-                return UNKNOWN;
-            }
-        }
-
         public User(String id, String name) {
             mId = id;
             mIsSet = false;
             mName = name;
         }
 
+        public class PilotStats {
+            private Long mFlightTimeLongPeriod = 0l;
+            private Long mGhostingCountMediumPeriod = 0l;
+            private Long mGhostingCountShortPeriod = 0l;
+            private Long mGrade = 0l;
+            private String mGradeName = "";
+            private Long mLandingCountLongPeriod = 0l;
+            private Long mTotalFlightTime = 0l;
+            private Long mTotalLandings = 0l;
+            private Long mTotalXP = 0l;
+            private Long mViolationsMediumPeriod = 0l;
+            private Long mViolationsShortPeriod = 0l;
+
+            private PilotStats(JSONObject object) throws JSONException {
+                mFlightTimeLongPeriod = object.getLong("FlightTimeLongPeriod");
+                mGhostingCountMediumPeriod = object.getLong("GhostingCountMediumPeriod");
+                mGhostingCountShortPeriod = object.getLong("GhostingCountShortPeriod");
+                mGrade = object.getLong("Grade");
+                mGradeName = object.getString("GradeName");
+                mLandingCountLongPeriod = object.getLong("LandingCountLongPeriod");
+                mTotalFlightTime = object.getLong("TotalFlightTime");
+                mTotalLandings = object.getLong("TotalLandings");
+                mTotalXP = object.getLong("TotalXP");
+                mViolationsMediumPeriod = object.getLong("ViolationsMediumPeriod");
+                mViolationsShortPeriod = object.getLong("ViolationsShortPeriod");
+            }
+
+            public Long getFlightTimeLongPeriod() {
+                return mFlightTimeLongPeriod;
+            }
+
+            public Long getGhostingCountMediumPeriod() {
+                return mGhostingCountMediumPeriod;
+            }
+
+            public Long getGhostingCountShortPeriod() {
+                return mGhostingCountShortPeriod;
+            }
+
+            public Long getGrade() {
+                return mGrade;
+            }
+
+            public String getGradeName() {
+                return mGradeName;
+            }
+
+            public Long getLandingCountLongPeriod() {
+                return mLandingCountLongPeriod;
+            }
+
+            public Long getTotalFlightTime() {
+                return mTotalFlightTime;
+            }
+
+            public Long getTotalLandings() {
+                return mTotalLandings;
+            }
+
+            public Long getTotalXP() {
+                return mTotalXP;
+            }
+
+            public Long getViolationsMediumPeriod() {
+                return mViolationsMediumPeriod;
+            }
+
+            public Long getViolationsShortPeriod() {
+                return mViolationsShortPeriod;
+            }
+        }
+
         private User(JSONObject object) throws JSONException {
 
+            mPilotStats = new PilotStats(object.getJSONObject("PilotStats"));
+            setUserRole(object);
             mFlightTime = object.getDouble("FlightTime");
             mLandingCount = object.getLong("LandingCount");
             mLastFlight = object.getLong("LastFlight");
             mName = object.getString("Name");
             mOnlineFlights = object.getLong("OnlineFlights");
-            mRank = object.getLong("Rank");
-            mSkills = object.getLong("Skills");
             mStanding = object.getDouble("Standing");
             mId = object.getString("UserID");
             mViolations = object.getLong("Violations");
@@ -189,14 +233,26 @@ public class Users {
             mIsSet = true;
         }
 
+        private void setUserRole(JSONObject object) throws JSONException {
+            JSONArray array = object.getJSONArray("Groups");
+            for (int i = 0; i < array.length(); ++i) {
+                String id = array.getString(i);
+                mIsAdmin = mIsAdmin || id.equalsIgnoreCase("D07AFAD8-79DF-4363-B1C7-A5A1DDE6E3C8");
+                mIsMod = mIsMod || id.equalsIgnoreCase("8C93A113-0C6C-491F-926D-1361E43A5833");
+            }
+            if (mIsAdmin)
+                mIsMod = false;
+        }
+
         public void set(User other) {
             this.mFlightTime = other.mFlightTime;
             this.mLandingCount = other.mLandingCount;
             this.mLastFlight = other.mLastFlight;
             this.mName = other.mName;
             this.mOnlineFlights = other.mOnlineFlights;
-            this.mRank = other.mRank;
-            this.mSkills = other.mSkills;
+            this.mIsAdmin = other.mIsAdmin;
+            this.mIsMod = other.mIsMod;
+            this.mPilotStats = other.mPilotStats;
             this.mStanding = other.mStanding;
             this.mViolations = other.mViolations;
             this.mIsSet = true;
@@ -214,6 +270,8 @@ public class Users {
         public boolean needsRefresh() {
             return (!mDontUpdate && mNeedsRefresh && TimeProvider.getTime() - mLastRefresh > REFRESH_THRESHOLD);
         }
+
+        public PilotStats getPilotStats() { return mPilotStats; }
 
         public String getId() {
             return mId;
@@ -233,14 +291,6 @@ public class Users {
 
         public Long getOnlineFlights() {
             return mOnlineFlights;
-        }
-
-        public Long getRank() {
-            return mRank;
-        }
-
-        public Long getSkills() {
-            return mSkills;
         }
 
         public Double getStanding() {
@@ -265,6 +315,14 @@ public class Users {
 
         public void setCurrentFlight(Flight flight) {
             mCurrentFlight = flight;
+        }
+
+        public boolean isMod() {
+            return mIsMod;
+        }
+
+        public boolean isAdmin() {
+            return mIsAdmin;
         }
     }
 }

@@ -27,4 +27,16 @@
     <color name="inactive_atc_color">
         #FFFFFFFF
     </color>
+    <color name="dev_color">
+        #FF00B7FF
+    </color>
+    <color name="mod_color">
+        #FFED69FF
+    </color>
+    <color name="grade_3_color">
+        #FF90EE90
+    </color>
+    <color name="grade_4_color">
+        #FFFFDAB9
+    </color>
 </resources>

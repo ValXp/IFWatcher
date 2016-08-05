@@ -250,9 +250,19 @@ public class MainListAdapter implements ExpandableListAdapter {
                 color = android.R.color.black;
                 Flight flight = user.getCurrentFlight();
                 int bgColor = android.R.color.white;
-                if (user.getRank() == 1) {
-                    color = R.color.gold_color;
-                    bgColor = android.R.color.black;
+                if (user.getPilotStats() != null) {
+                    if (user.getPilotStats().getGrade() == 3) {
+                        color = R.color.grade_3_color;
+                    }
+                    if (user.getPilotStats().getGrade() == 4) {
+                        color = R.color.grade_4_color;
+                    }
+                }
+                if (user.isAdmin()) {
+                    color = R.color.dev_color;
+                }
+                if (user.isMod()) {
+                    color = R.color.mod_color;
                 }
                 name.setShadowLayer(2, 2, 2, mContext.getResources().getColor(bgColor));
 

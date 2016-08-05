@@ -24,7 +24,6 @@ import com.valxp.app.infiniteflightwatcher.caching.DrawableMemoryCache;
 import com.valxp.app.infiniteflightwatcher.model.Flight;
 import com.valxp.app.infiniteflightwatcher.model.Users;
 
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -70,6 +69,7 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
 
     public enum UserIds {
         Name,
+        Grade,
         Standing,
         XP,
         FlightTime,
@@ -326,24 +326,32 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
 
         int bgDrawable = R.drawable.shadowed_ui_background;
         Users.User user = flight.getUser();
+        String postfix = "";
         if (user.isSet()) {
-            if (user.getRank() == 1) {
-                bgDrawable = R.drawable.shadowed_ui_background_gold;
+            if (user.getPilotStats().getGrade() == 3) {
+                bgDrawable = R.drawable.shadowed_ui_background_grade3;
             }
-//             else if (user.getRole() == Users.User.Role.ADMIN) {
-//                bgDrawable = R.drawable.shadowed_ui_background_admin;
-//            } else if (user.getRole() == Users.User.Role.TESTER) {
-//                bgDrawable = R.drawable.shadowed_ui_background_tester;
-//            }
-            //mLeftTexts.get(UserIds.Roles).setText("Role: " + user.getRole());
+            if (user.getPilotStats().getGrade() == 4) {
+                bgDrawable = R.drawable.shadowed_ui_background_grade4;
+            }
+            if (user.isMod()) {
+                postfix = " (Mod)";
+                bgDrawable = R.drawable.shadowed_ui_background_mod;
+            }
+            if (user.isAdmin()) {
+                postfix = " (Dev)";
+                bgDrawable = R.drawable.shadowed_ui_background_dev;
+            }
+
+            mLeftTexts.get(UserIds.Grade).setText(user.getPilotStats().getGradeName());
             mLeftTexts.get(UserIds.Standing).setText("Standing: " + Math.round(user.getStanding() * 100)+ "%");
-            mLeftTexts.get(UserIds.XP).setText("XP: " + user.getSkills());
+            mLeftTexts.get(UserIds.XP).setText("XP: " + user.getPilotStats().getTotalXP());
             mLeftTexts.get(UserIds.FlightTime).setText((int)Math.floor(user.getFlightTime() / 60) + " flight hours");
             mLeftTexts.get(UserIds.LandingCount).setText("Landings: " + user.getLandingCount());
             mLeftTexts.get(UserIds.Violations).setText("Violations: " + user.getViolations());
             mLeftTexts.get(UserIds.OnlineFlights).setText("Online Flights : " + user.getOnlineFlights());
         } else {
-//            mLeftTexts.get(UserIds.Roles).setText("Loading...");
+            mLeftTexts.get(UserIds.Grade).setText("Loading...");
             mLeftTexts.get(UserIds.Standing).setText("Loading...");
             mLeftTexts.get(UserIds.XP).setText("Loading...");
             mLeftTexts.get(UserIds.FlightTime).setText("Loading...");
@@ -351,7 +359,8 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
             mLeftTexts.get(UserIds.Violations).setText("Loading...");
             mLeftTexts.get(UserIds.OnlineFlights).setText("Loading...");
         }
-        mLeftTexts.get(UserIds.Name).setText(flight.getDisplayName());
+
+        mLeftTexts.get(UserIds.Name).setText(flight.getDisplayName() + postfix);
 //        mInnerInfoPane.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
         mImageLayout.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
 //        mMyLoc.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
