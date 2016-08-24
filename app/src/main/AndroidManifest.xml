@@ -24,10 +24,10 @@
 
                 <data
                     android:host="liveflightapp.com"
-                    android:scheme="http" />
+                    android:scheme="https" />
                 <data
                     android:host="www.liveflightapp.com"
-                    android:scheme="http" />
+                    android:scheme="https" />
             </intent-filter>
         </activity>
 
