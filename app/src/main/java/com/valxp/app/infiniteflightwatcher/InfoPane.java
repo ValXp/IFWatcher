@@ -364,7 +364,7 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
 //        mInnerInfoPane.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
         mImageLayout.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
 //        mMyLoc.setBackgroundDrawable(getResources().getDrawable(bgDrawable));
-        mURL = "http://www.liveflightapp.com/?f=" + flight.getFlightID() + "&s=" + flight.getServer().getId();
+        mURL = "https://www.liveflightapp.com/?f=" + flight.getFlightID() + "&s=" + flight.getServer().getId();
         return true;
     }
 
