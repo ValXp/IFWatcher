@@ -35,11 +35,15 @@ public class FileDiskCache {
     }
 
     public String getFilePath(String fileName, boolean blockIfNotPresent) {
+        return getFilePath(fileName, blockIfNotPresent, false);
+    }
+
+    public String getFilePath(String fileName, boolean blockIfNotPresent, boolean force) {
         String fullFileName = mCacheLocation + fileName;
         String metaName = fullFileName + ".meta";
         String etag = getEtag(metaName);
         File file = new File(fullFileName);
-        if (blockIfNotPresent && (!file.exists() || etag == null || System.currentTimeMillis() - file.lastModified() > 1000 * 3600 * 24 * 14)) // every 2 weeks
+        if (blockIfNotPresent && (!file.exists() || etag == null || System.currentTimeMillis() - file.lastModified() > 1000 * 3600 * 24 * 14 || force)) // every 2 weeks
         {
             String benchName = "Downloading " + fileName;
             Utils.Benchmark.start(benchName);

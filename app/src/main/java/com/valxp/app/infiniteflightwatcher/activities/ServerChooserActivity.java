@@ -65,7 +65,7 @@ public class ServerChooserActivity extends Activity {
         mThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                String path = mDiskCache.getFilePath("airplanes.txt", true);
+                String path = mDiskCache.getFilePath("airplanes.txt", true, true);
                 Liveries.initLiveries(ServerChooserActivity.this, path);
                 while (mServers == null) {
                     mServers = Server.getServers(mServers);
