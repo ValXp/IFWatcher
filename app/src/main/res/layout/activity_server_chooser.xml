@@ -5,7 +5,8 @@
     android:animateLayoutChanges="true"
     android:layout_margin="50dp"
     android:gravity="center_horizontal"
-    tools:context="com.valxp.app.infiniteflightwatcher.activities.ServerChooserActivity">
+    tools:context="com.valxp.app.infiniteflightwatcher.activities.ServerChooserActivity"
+    android:id="@+id/root_srv_layout">
 
     <TextView
         android:layout_margin="10dp"
@@ -22,6 +23,10 @@
         android:textColor="@android:color/black"
         android:elevation="5dp"
         />
+    <com.valxp.app.infiniteflightwatcher.RadarLoadingView
+        android:id="@+id/radar_loading"
+        android:layout_width="140dp"
+        android:layout_height="140dp" />
     <android.support.v7.widget.RecyclerView
         android:id="@+id/server_list"
         android:layout_margin="10dp"

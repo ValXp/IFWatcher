@@ -17,6 +17,7 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.valxp.app.infiniteflightwatcher.APIConstants;
 import com.valxp.app.infiniteflightwatcher.R;
+import com.valxp.app.infiniteflightwatcher.RadarLoadingView;
 import com.valxp.app.infiniteflightwatcher.TimeProvider;
 import com.valxp.app.infiniteflightwatcher.Utils;
 import com.valxp.app.infiniteflightwatcher.caching.FileDiskCache;
@@ -35,6 +36,7 @@ public class ServerChooserActivity extends Activity {
     private HashMap<String, Server> mServers;
     private Thread mThread;
     private TextView mTitleText;
+    private RadarLoadingView mRadarView;
     FileDiskCache mDiskCache;
 
     @Override
@@ -45,6 +47,7 @@ public class ServerChooserActivity extends Activity {
         setContentView(R.layout.activity_server_chooser);
         mServerListView = (RecyclerView) findViewById(R.id.server_list);
         mTitleText = (TextView) findViewById(R.id.server_chooser_title);
+        mRadarView = (RadarLoadingView) findViewById(R.id.radar_loading);
         mTitleText.setText(R.string.connecting_to_if);
         mDiskCache = new FileDiskCache(this, "data_cache", APIConstants.APICalls.LIVERIES);
 
@@ -79,12 +82,14 @@ public class ServerChooserActivity extends Activity {
                     @Override
                     public void run() {
                         mTitleText.setText(R.string.please_choose_a_server);
+                        mRadarView.setVisibility(View.GONE);
                         mServerListView.setVisibility(View.VISIBLE);
                         mServerListView.invalidate();
                     }
                 });
             }
         });
+
         mThread.start();
         TimeProvider.synchronizeWithInternet();
     }
