@@ -580,7 +580,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 mClusterMode = cameraPosition.zoom <= MAP_ZOOM_CLUSTER;
                 Log.d("MapsActivity", "Camera zoom " + cameraPosition.zoom + " Cluster mode " + (mClusterMode ? "enabled" : "disabled"));
             }
-            if (mClusterMode && mSelectedFlight != null) {
+            if (mClusterMode && mSelectedFlight != null && mRegions.regionContainingPoint(mSelectedFlight.getAproxLocation()) != null) {
                 unselectFlight();
             }
             if ((!mEnableOverlay.isChecked() || mClusterMode) && mTileOverlay != null) {
@@ -637,7 +637,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 if (flight.getCurrentData() != null) {
                     LatLng aproxLocation = flight.getAproxLocation();
                     Marker marker = flight.getMarker();
-                    boolean shouldDraw = camBounds.contains(aproxLocation) && !mClusterMode;
+                    boolean shouldDraw = camBounds.contains(aproxLocation) && (!mClusterMode || mRegions.regionContainingPoint(aproxLocation) == null);
                     if (shouldDraw && marker == null) {
                         flight.createMarker(mMap, mBitmapProvider);
                     } else if (marker != null && !shouldDraw) {
