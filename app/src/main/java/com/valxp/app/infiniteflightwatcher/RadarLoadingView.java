@@ -45,13 +45,17 @@ public class RadarLoadingView extends View {
             life -= elapsedSec * (DEGREES_PER_S / 360f);
 
             // Blip died, time to recreate it
-            if (life <= 0)
+            if (life <= -mRand.nextFloat())
             {
                 double radianAngle = Math.toRadians(currentAngle - 90);
                 float multiplier = Math.abs(mRand.nextFloat());
                 x = (float)Math.cos(radianAngle) * multiplier;
                 y = (float)Math.sin(radianAngle) * multiplier;
                 life = 1;
+            }
+            if (life <= 0)
+            {
+                return;
             }
 
             // Render only if position is set
