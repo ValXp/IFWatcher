@@ -2,11 +2,14 @@ package com.valxp.app.infiniteflightwatcher.model;
 
 import android.content.Context;
 
-import java.io.BufferedReader;
+import com.google.gson.Gson;
+import com.google.gson.stream.JsonReader;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,16 +30,65 @@ public class Liveries {
             if (file.exists()) {
                 stream = new FileInputStream(path);
             } else {
-                stream = ctx.getAssets().open("airplanes.txt");
+                stream = ctx.getAssets().open("AirplanesManifest.json");
             }
-            BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-            String line;
-            do {
-                if ((line = reader.readLine()) != null) {
-                    String[] values = line.split(":");
-                    mLiveries.put(values[1], new Livery(values[1], values[3], values[0], values[2]));
+            Gson gson = new Gson();
+            JsonReader reader = gson.newJsonReader(new InputStreamReader(stream));
+            ArrayList<Livery> liveries = new ArrayList<>();
+            reader.beginArray(); // Start of airplane array.
+            while (reader.hasNext()){
+                reader.beginObject(); // Start of airplane object.
+                String aircraftId = "";
+                String aircraftName = "";
+                liveries.clear();
+                while (reader.hasNext()) {
+                    switch (reader.nextName()) {
+                        case "ID":
+                            aircraftId = reader.nextString();
+                            break;
+                        case "Name":
+                            aircraftName = reader.nextString();
+                            break;
+                        case "Liveries":
+                            reader.beginArray();
+                            while (reader.hasNext()){
+                                String liveryId = "";
+                                String liveryName = "";
+                                reader.beginObject();
+                                while (reader.hasNext()) {
+                                    switch (reader.nextName()) {
+                                        case "ID":
+                                            liveryId = reader.nextString();
+                                            break;
+                                        case "Name":
+                                            liveryName = reader.nextString();
+                                            break;
+                                        default:
+                                            reader.skipValue();
+                                            break;
+                                    }
+                                }
+                                liveries.add(new Livery(liveryId, liveryName, aircraftId, aircraftName));
+
+                                reader.endObject();
+                            }
+                            reader.endArray();
+                            break;
+                        default:
+                            reader.skipValue();
+                            break;
+                    }
+                    for (Livery livery : liveries) {
+                        livery.mPlaneId = aircraftId;
+                        livery.mPlaneName = aircraftName;
+                        mLiveries.put(livery.getId(), livery);
+                    }
                 }
-            } while (line != null);
+                reader.endObject();
+            }
+            reader.endArray();
+            reader.close();
+
             stream.close();
         } catch (Exception e) {
             e.printStackTrace();
