@@ -24,7 +24,9 @@ public class Utils {
     private static boolean mIsMyDevice;
     private static final List<String> myDevices = Arrays.asList(
             "44c651a066e88cb72419bca4154dd79ae4037bc36314e7b72c857437161aaf72", // N6P
-            "de209fa6d5cc6a337b975c50f9c04defae0deb6f2ada246426d7cf69f702605f"); // N9
+            "de209fa6d5cc6a337b975c50f9c04defae0deb6f2ada246426d7cf69f702605f", // N9
+            "0f81baa48243955e5d7083ecdd27425303e1450f5c5c7564da23711763c881e7"// OP5
+    );
     private static String mDeviceId;
 
     public static void initContext(Context ctx) {
