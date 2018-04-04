@@ -7,7 +7,7 @@ if (propsFile.exists()) {
     props.load(new FileInputStream(propsFile))
     android {
         compileSdkVersion 23
-        buildToolsVersion "26.0.0"
+        //buildToolsVersion "26.0.0"
 
         signingConfigs {
             release {
@@ -22,8 +22,8 @@ if (propsFile.exists()) {
         defaultConfig {
             minSdkVersion 14
             targetSdkVersion 22
-            versionCode 36
-            versionName "7.23GP"
+            versionCode 37
+            versionName "7.24GP"
             applicationId "com.valxp.app.infiniteflightwatcher"
         }
         buildTypes {
@@ -44,6 +44,8 @@ if (propsFile.exists()) {
             // The Google Repository (separate from the corresponding library) can be found in the Extras category.
             compile 'com.google.android.gms:play-services-maps:9.0.0'
             compile 'com.google.code.gson:gson:2.7'
+            //compile 'com.google.android.gms:play-services-maps:12.0.0'
+            //compile 'com.google.code.gson:gson:2.8'
             //compile 'com.google.firebase:firebase-analytics:9.0.0'
             compile fileTree(dir: 'libs', include: ['*.jar'])
         }
