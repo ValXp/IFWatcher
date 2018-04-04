@@ -70,7 +70,6 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
     public enum UserIds {
         Name,
         Grade,
-        Standing,
         XP,
         FlightTime,
         LandingCount,
@@ -344,7 +343,6 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
             }
 
             mLeftTexts.get(UserIds.Grade).setText(user.getPilotStats().getGradeName());
-            mLeftTexts.get(UserIds.Standing).setText("Standing: " + Math.round(user.getStanding() * 100)+ "%");
             mLeftTexts.get(UserIds.XP).setText("XP: " + user.getPilotStats().getTotalXP());
             mLeftTexts.get(UserIds.FlightTime).setText((int)Math.floor(user.getFlightTime() / 60) + " flight hours");
             mLeftTexts.get(UserIds.LandingCount).setText("Landings: " + user.getLandingCount());
@@ -352,7 +350,6 @@ public class InfoPane extends RelativeLayout implements View.OnClickListener {
             mLeftTexts.get(UserIds.OnlineFlights).setText("Online Flights : " + user.getOnlineFlights());
         } else {
             mLeftTexts.get(UserIds.Grade).setText("Loading...");
-            mLeftTexts.get(UserIds.Standing).setText("Loading...");
             mLeftTexts.get(UserIds.XP).setText("Loading...");
             mLeftTexts.get(UserIds.FlightTime).setText("Loading...");
             mLeftTexts.get(UserIds.LandingCount).setText("Loading...");
