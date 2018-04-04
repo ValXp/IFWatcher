@@ -89,14 +89,12 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     private ExpandableListView mExpandableList;
     private DrawerLayout mDrawer;
     private View mDrawerHandle;
-    private CheckBox mEnableOverlay;
     private MainListAdapter mListAdapter;
     private AirplaneBitmapProvider mBitmapProvider;
     private InfoPane mInfoPane;
-    private Regions mRegions;
+    //private Regions mRegions;
     private float mLastZoom;
     private Runnable mUpdateRunnable;
-    private boolean mClusterMode = true;
     private HeatMapTileProvider mHeatMapTileProvider;
     private TileOverlay mTileOverlay;
     private String mServerId;
@@ -127,8 +125,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mExpandableList = (ExpandableListView) findViewById(R.id.expandableList);
         mDrawer = (DrawerLayout) findViewById(R.id.drawer);
         mDrawerHandle = findViewById(R.id.drawer_handle);
-        mEnableOverlay = (CheckBox) findViewById(R.id.enable_overlay);
-        mEnableOverlay.setOnCheckedChangeListener(this);
         TextView version = (TextView) findViewById(R.id.version);
         try {
             PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
@@ -152,7 +148,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             }
         });
 
-        mListAdapter = new MainListAdapter(this, mFleet, mRegions, mAtcs, mServers);
+        mListAdapter = new MainListAdapter(this, mFleet, mAtcs, mServers);
         mExpandableList.setOnChildClickListener(this);
         mExpandableList.setAdapter(mListAdapter);
         mDrawer.setDrawerListener(new DrawerLayout.DrawerListener() {
@@ -195,7 +191,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
 
         mFleet = new Fleet();
-        mRegions = Regions.getInstance(this);
         mBitmapProvider = new AirplaneBitmapProvider(this);
 
 
@@ -264,8 +259,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         TimeProvider.synchronizeWithInternet();
         unselectFlight();
         setUpMapIfNeeded();
-        if (mRegions != null)
-            mRegions.clearMap();
         if (mFleet != null)
             mFleet.clearMap();
 
@@ -287,7 +280,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             public void run() {
                 try {
                     updateMap();
-                    mRegions.updateMETAR();
+                    //mRegions.updateMETAR();
                     if (mUIHandler != null) {
                         mUIHandler.removeCallbacks(this); // Making sure we don't call ourselves multiple times
                         mUIHandler.postDelayed(this, REFRESH_UI_MS);
@@ -317,6 +310,12 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         mForeFlightClient.stopClient();
         mForeFlightClient = null;
         super.onPause();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        finish();
     }
 
     private void setUpMapIfNeeded() {
@@ -529,7 +528,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     public boolean onMarkerClick(Marker marker) {
         Flight flight = flightForMarker(marker);
         if (flight == null) {
-            mRegions.onMarkerClick(this, mMap, marker);
+            //mRegions.onMarkerClick(this, mMap, marker);
             return true;
         }
         selectFlight(flight);
@@ -550,9 +549,9 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
     @Override
     public void onMapClick(LatLng latLng) {
         unselectFlight();
-        if (mClusterMode) {
+        /*if (mClusterMode) {
             mRegions.onMapClick(this, mMap, latLng);
-        }
+        }*/
     }
 
     private void requestPathUpdate(Flight flight) {
@@ -577,17 +576,17 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             Bounds camBounds = new Bounds(vg.farLeft.longitude, vg.farRight.longitude, vg.nearLeft.latitude, vg.farLeft.latitude);
             if ((cameraPosition.zoom - MAP_ZOOM_CLUSTER) * (mLastZoom - MAP_ZOOM_CLUSTER) < 0) {
                 mLastZoom = cameraPosition.zoom;
-                mClusterMode = cameraPosition.zoom <= MAP_ZOOM_CLUSTER;
-                Log.d("MapsActivity", "Camera zoom " + cameraPosition.zoom + " Cluster mode " + (mClusterMode ? "enabled" : "disabled"));
+                //mClusterMode = cameraPosition.zoom <= MAP_ZOOM_CLUSTER;
+                Log.d("MapsActivity", "Camera zoom " + cameraPosition.zoom /*+ " Cluster mode " + (mClusterMode ? "enabled" : "disabled")*/);
             }
-            if (mClusterMode && mSelectedFlight != null && mRegions.regionContainingPoint(mSelectedFlight.getAproxLocation()) != null) {
+            /*if (mClusterMode && mSelectedFlight != null && mRegions.regionContainingPoint(mSelectedFlight.getAproxLocation()) != null) {
                 unselectFlight();
-            }
-            if ((!mEnableOverlay.isChecked() || mClusterMode) && mTileOverlay != null) {
+            }*/
+            /*if ((!mEnableOverlay.isChecked()) && mTileOverlay != null) {
                 mTileOverlay.remove();
                 mTileOverlay = null;
                 mHeatMapTileProvider.removeAllHeatMaps();
-            } else if (mEnableOverlay.isChecked() && !mClusterMode) {
+            } else if (mEnableOverlay.isChecked()) {
                 boolean hasChanged = false;
                 for (Regions.Region region : mRegions) {
                     if (region.isContainedIn(camBounds)) {
@@ -606,9 +605,9 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 }
                 if (mTileOverlay == null)
                     mTileOverlay = mMap.addTileOverlay(new TileOverlayOptions().tileProvider(mHeatMapTileProvider));
-            }
+            }*/
             // Do the regions drawing.
-            mRegions.draw(MapsActivity.this, mMap, mAtcs, mClusterMode, camBounds);
+            //mRegions.draw(MapsActivity.this, mMap, mAtcs, mClusterMode, camBounds);
 
             // Update the plane markers
             drawPlanes(vg.latLngBounds);
@@ -637,7 +636,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 if (flight.getCurrentData() != null) {
                     LatLng aproxLocation = flight.getAproxLocation();
                     Marker marker = flight.getMarker();
-                    boolean shouldDraw = camBounds.contains(aproxLocation) && (!mClusterMode || mRegions.regionContainingPoint(aproxLocation) == null);
+                    boolean shouldDraw = camBounds.contains(aproxLocation);// && (!mClusterMode || mRegions.regionContainingPoint(aproxLocation) == null);
                     if (shouldDraw && marker == null) {
                         flight.createMarker(mMap, mBitmapProvider);
                     } else if (marker != null && !shouldDraw) {
@@ -656,7 +655,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             expandedGroups.add(mExpandableList.isGroupExpanded(i));
         }
         int pos = mExpandableList.getFirstVisiblePosition();
-        mListAdapter = new MainListAdapter(this, mFleet, mRegions, mAtcs, mServers);
+        mListAdapter = new MainListAdapter(this, mFleet, mAtcs, mServers);
         mExpandableList.setAdapter(mListAdapter);
         for (int i = 0; i < groupCount; ++i) {
             if (expandedGroups.get(i))
@@ -673,12 +672,6 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
             return false;
         Regions.Region region;
         switch (i) {
-            case MainListAdapter.REGIONS_INDEX:
-                region = (Regions.Region) tag;
-                mDrawer.closeDrawers();
-                region.zoomOnRegion(this, mMap);
-                unselectFlight();
-                break;
             case MainListAdapter.USERS_INDEX:
                 final Flight flight = (Flight) tag;
                 mDrawer.closeDrawers();
@@ -706,7 +699,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
 
     public void showFlight(final Flight flight) {
 
-        Regions.Region region = mRegions.regionContainingPoint(flight.getAproxLocation());
+        /*Regions.Region region = mRegions.regionContainingPoint(flight.getAproxLocation());
         if (region != null && mClusterMode) {
             region.showInside();
             region.zoomOnRegion(this, mMap, new GoogleMap.CancelableCallback() {
@@ -721,7 +714,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 }
             });
 
-        } else {
+        } else*/ {
             flight.createMarker(mMap, mBitmapProvider);
             selectMarkerFromUI(flight);
         }
@@ -837,7 +830,7 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
                 mAtcs = ATC.getATC(mFleet.getSelectedServer());
 
                 final Runnable toRunOnUI = mFleet.updateFleet(FLIGHT_MAX_LIFETIME_SECONDS);
-                mRegions.updateCount(mFleet);
+                //mRegions.updateCount(mFleet);
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
@@ -894,9 +887,9 @@ public class MapsActivity extends FragmentActivity implements GoogleMap.OnMarker
         @Override
         public View getInfoContents(Marker marker) {
             View v = null;
-            if (mRegions != null && marker != null) {
+            /*if (mRegions != null && marker != null) {
                 v = mRegions.getInfoWindow(MapsActivity.this, mAtcs, marker);
-            }
+            }*/
             return v;
         }
     }

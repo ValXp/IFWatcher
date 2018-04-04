@@ -34,22 +34,18 @@ import java.util.Map;
  * Created by ValXp on 6/22/14.
  */
 public class MainListAdapter implements ExpandableListAdapter {
-    public static final int REGIONS_INDEX = 0;
-    public static final int USERS_INDEX = 1;
-    public static final int ATC_INDEX = 2;
-    public static final int SERVERS_INDEX = 3;
+    public static final int USERS_INDEX = 0;
+    public static final int ATC_INDEX = 1;
+    public static final int SERVERS_INDEX = 2;
     private Context mContext;
-    private Regions mRegions;
-    private List<Regions.Region> mRegionList;
     private List<Users.User> mUserList;
     private List<ATC> mAtcs;
     private List<Server> mServerList;
     private Fleet mFleet;
 
 
-    public MainListAdapter(Context context, Fleet fleet, Regions regions, Map<String, List<ATC>> atcs, HashMap<String, Server> servers) {
+    public MainListAdapter(Context context, Fleet fleet, Map<String, List<ATC>> atcs, HashMap<String, Server> servers) {
         mContext = context;
-        mRegions = regions;
         mFleet = fleet;
 
         mAtcs = new ArrayList<>();
@@ -67,16 +63,6 @@ public class MainListAdapter implements ExpandableListAdapter {
             }
         }
 
-        synchronized (regions) {
-            mRegionList = new ArrayList<>(regions);
-            Collections.sort(mRegionList, new Comparator<Regions.Region>() {
-                @Override
-                public int compare(Regions.Region region, Regions.Region region2) {
-                    return region2.getPlayerCount() - region.getPlayerCount();
-                }
-            });
-        }
-
         synchronized (fleet) {
             mUserList = new ArrayList<>(fleet.getUsers().getUsers().values());
             for (Iterator<Users.User> it = mUserList.iterator(); it.hasNext();) {
@@ -88,14 +74,7 @@ public class MainListAdapter implements ExpandableListAdapter {
                 public int compare(Users.User user, Users.User user2) {
                     Flight flight = user.getCurrentFlight();
                     Flight flight2 = user2.getCurrentFlight();
-
-                    Regions.Region region = flight == null ? null : mRegions.regionContainingPoint(flight.getAproxLocation());
-                    Regions.Region region2 = flight2 == null ? null : mRegions.regionContainingPoint(flight2.getAproxLocation());
-                    if (region == null)
-                        return region2 == null ? 0 : -1;
-                    if (region2 == null)
-                        return 1;
-                    return region2.getName().compareTo(region.getName());
+                    return flight.getUser().getName().compareTo(flight2.getUser().getName());
                 }
             });
         }
@@ -135,7 +114,7 @@ public class MainListAdapter implements ExpandableListAdapter {
 
     @Override
     public int getGroupCount() {
-        return (mRegionList == null ? 0 : 1) + (mAtcs == null ? 0 : 1) + (mUserList == null ? 0 : 1) + (mServerList == null ? 0 : 1);
+        return (mAtcs == null ? 0 : 1) + (mUserList == null ? 0 : 1) + (mServerList == null ? 0 : 1);
     }
 
     @Override
@@ -147,8 +126,6 @@ public class MainListAdapter implements ExpandableListAdapter {
     @Override
     public Object getGroup(int i) {
         switch (i) {
-            case REGIONS_INDEX:
-                return mRegionList;
             case USERS_INDEX:
                 return mUserList;
             case ATC_INDEX:
@@ -192,10 +169,6 @@ public class MainListAdapter implements ExpandableListAdapter {
 
         count.setText("(" + getChildrenCount(i) + ")");
         switch (i) {
-            case REGIONS_INDEX:
-                name.setText("Regions");
-                count.setText("");
-            break;
             case USERS_INDEX:
                 name.setText("Users");
             break;
@@ -230,21 +203,7 @@ public class MainListAdapter implements ExpandableListAdapter {
         if (item == null)
             return view;
         switch (i) {
-            case REGIONS_INDEX:
-                region = (Regions.Region) item;
-                name.setText(region.getName());
-                count.setText("(" + region.getPlayerCount() + ")");
-                color = region.getPlayerCount() == 0 ? android.R.color.darker_gray : android.R.color.black;
-                name.setTextColor(mContext.getResources().getColor(color));
-                count.setTextColor(mContext.getResources().getColor(color));
-                view.setTag(region);
-                Metar metar = region.getWindiestAirport();
-                if (metar != null)
-                    subname.setText(metar.getStationID() + " Wind speed: " + metar.getWindSpeed() + "kts" + " gust: " + metar.getWindGust() + "kts");
-                else
-                    subname.setText("Loading...");
-                subname.setVisibility(View.VISIBLE);
-            break;
+
             case USERS_INDEX:
                 Users.User user = (Users.User) item;
                 color = android.R.color.black;
@@ -277,14 +236,8 @@ public class MainListAdapter implements ExpandableListAdapter {
                     subname.setVisibility(View.VISIBLE);
                     subname.setText(flight.getLivery().getPlaneName());
                     view.setTag(user.getCurrentFlight());
-                    region = mRegions.regionContainingPoint(flight.getAproxLocation());
-                    if (region == null) {
-                        text = "Lost";
-                    } else {
-                        text = region.getName();
-                    }
                 }
-                count.setText(text);
+                count.setText(""); // Used to tell which region it was in.
                 break;
             case ATC_INDEX:
                 ATC atc = (ATC) item;

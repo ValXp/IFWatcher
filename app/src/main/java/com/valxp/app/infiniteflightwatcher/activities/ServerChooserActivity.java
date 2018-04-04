@@ -58,17 +58,10 @@ public class ServerChooserActivity extends Activity {
 
         mServerListView.setVisibility(View.GONE);
 
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                // Pre-load regions because it can take a while
-                Regions.getInstance(ServerChooserActivity.this);
-            }
-        }).start();
         mThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                String path = mDiskCache.getFilePath("airplanes.txt", true, true);
+                String path = mDiskCache.getFilePath("AirplanesManifest.json", true, true);
                 Liveries.initLiveries(ServerChooserActivity.this, path);
                 while (mServers == null) {
                     mServers = Server.getServers(mServers);
