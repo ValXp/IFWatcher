@@ -1,4 +1,7 @@
-Infinite Flight Live <del>Watcher</del> Tracker for Android
+----------
+
+
+Infinite Flight Live ~~Watcher~~ Tracker for Android
 ===
 
 Hi everyone!
@@ -9,19 +12,18 @@ So I made this little app that uses the Infinite Flight Live API to show the cur
 It also supports the ForeFlight broadcasts coming for the Infinite Flight app so you can see yourself flying on real time (when not using foreflight your location is updated every ~30 seconds).
 Currently the app is not of great quality, it will crash sometimes and probably will be slow on low-end devices.
 
-The app will automatically tell you when an update is here.
 
 ----------
 ## A little screenshot: ##
-<img src="https://community.infinite-flight.com/uploads/infinite_flight/264/0cf00a05843c80fd.png" width="281" height="500"> 
+<img src="https://sjc1.discourse-cdn.com/infiniteflight/uploads/default/original/1X/20a6e6d8d07caca65527e233f9b95810d17c6612.png" width="281" height="500"> 
 
 ----------
 ## Future stuff to do: ##
 
- - <del>Use traffic from ForeFlight link
+ - ~~Use traffic from ForeFlight link~~
  - Match ForeFlight data with server data
- - <del>Add ATC info onto the map
- - <del>Add airports onto the map
+ - ~~Add ATC info onto the map~~
+ - ~~Add airports onto the map~~
  - Becoming millionaire
  - Add smoke and buildings
 
@@ -29,17 +31,16 @@ Don't hesitate to share your ideas!
 
 
 ----------
-## Downloads ##
+## Download ##
 
-This is a link to the app that you have to download directly on your device.
+[![Get it on Google Play|323x125](https://play.google.com/intl/en_us/badges/images/generic/en_badge_web_generic.png)](https://play.google.com/store/apps/details?id=com.valxp.app.infiniteflightwatcher)
 
-Download link: http://valxp.net/IFWatcher/
-Or
-QR code: 
+iOS user? PC user? Go checkout @Cameron's  web app here: https://community.infinite-flight.com/t/announcing-liveflight/776?u=valxp
 
-<img src="https://community.infinite-flight.com/uploads/infinite_flight/265/7b1e8303aa7b7fc4.png" width="200" height="200">
+----------
+## Source ##
 
-iOS user? PC user? Go checkout @carmalonso's web app here: https://community.infinite-flight.com/t/announcing-liveflight/776?u=valxp
+https://github.com/ValXp/IFWatcher
 
 ----------
 ## 06/27/15 Update: ##
